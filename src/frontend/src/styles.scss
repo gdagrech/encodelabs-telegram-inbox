@@ -1,0 +1,99 @@
+/*
+ * Design tokens taken from the live encodelabs.com.ar stylesheet (teal brand ramp in oklch,
+ * neutral grey ramp, Red Hat Display). The inbox is inspired by that identity, not a copy of
+ * the site: same palette and typeface, own layout.
+ */
+:root {
+  --color-brand-lightest: oklch(0.951 0.012 201);
+  --color-brand-light: oklch(0.875 0.026 201);
+  --color-brand-accent: oklch(0.627 0.132 162);
+  --color-brand-primary: oklch(0.499 0.082 209);
+  --color-brand-dark: oklch(0.382 0.066 215);
+  --color-brand-deepest: oklch(0.282 0.047 212);
+
+  --color-neutral-5: oklch(0.97 0 0);
+  --color-neutral-10: oklch(0.952 0 0);
+  --color-neutral-20: oklch(0.919 0 0);
+  --color-neutral-30: oklch(0.873 0 0);
+  --color-neutral-40: oklch(0.712 0 0);
+  --color-neutral-60: oklch(0.517 0 0);
+  --color-neutral-90: oklch(0.209 0 0);
+  --color-white: oklch(1 0 0);
+
+  --color-surface-default: var(--color-white);
+  --color-surface-subtle: var(--color-neutral-5);
+  --color-border-default: var(--color-neutral-20);
+  --color-border-strong: var(--color-neutral-30);
+
+  --color-text-primary: var(--color-neutral-90);
+  --color-text-secondary: var(--color-neutral-60);
+  --color-text-muted: var(--color-neutral-40);
+  --color-text-inverse: var(--color-white);
+
+  --color-status-error: oklch(0.577 0.213 27.3);
+  --color-status-error-surface: oklch(0.963 0.035 27.3);
+  --color-status-success: oklch(0.627 0.132 162);
+  --color-status-warning: oklch(0.72 0.14 70);
+
+  --font-family-sans: 'Red Hat Display', system-ui, -apple-system, sans-serif;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-small: 6px;
+  --radius-medium: 10px;
+  --radius-large: 16px;
+  --radius-pill: 999px;
+
+  --shadow-panel: 0 1px 2px oklch(0 0 0 / 6%), 0 8px 24px oklch(0 0 0 / 4%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+textarea,
+input {
+  font: inherit;
+}
+
+/* Visible focus ring everywhere: the inbox is fully operable from the keyboard. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}

@@ -1,0 +1,130 @@
+.inbox-shell {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  height: 100%;
+  /* Desktop-only by requirement: a minimum width keeps the two columns usable. */
+  min-width: 960px;
+}
+
+.inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-brand-deepest);
+  color: var(--color-text-inverse);
+}
+
+.inbox-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.inbox-brand__mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-medium);
+  background: var(--color-brand-accent);
+  color: var(--color-brand-deepest);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.inbox-brand__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-brand__company {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-brand-light);
+}
+
+.inbox-brand__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.inbox-header__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: 0.8125rem;
+}
+
+.inbox-header__unread {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 14%);
+  font-weight: 600;
+}
+
+.connection-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-brand-light);
+}
+
+.connection-indicator__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-warning);
+}
+
+.connection-indicator--online .connection-indicator__dot {
+  background: var(--color-status-success);
+}
+
+.inbox-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-status-error);
+  background: var(--color-status-error-surface);
+  color: var(--color-status-error);
+  font-size: 0.875rem;
+}
+
+.inbox-error__text {
+  font-weight: 500;
+}
+
+.inbox-error__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+}
+
+.inbox-error__button {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid currentcolor;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+
+  &:hover {
+    background: oklch(1 0 0 / 60%);
+  }
+}
+
+.inbox-columns {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: 0;
+}

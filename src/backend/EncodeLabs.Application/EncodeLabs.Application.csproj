@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\EncodeLabs.Domain\EncodeLabs.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Abstraction-only packages. They carry no technology choice into the use cases: logging and the
+      service-collection contract stay interfaces, while the implementations are composed in the API host.
+    -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+  </ItemGroup>
+
+</Project>

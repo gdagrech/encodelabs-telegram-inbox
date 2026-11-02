@@ -1,0 +1,28 @@
+<form class="message-composer" (submit)="$event.preventDefault(); submitReply()">
+  <label class="message-composer__label" for="replyText">
+    Responder a {{ contactDisplayName() }}
+  </label>
+
+  <div class="message-composer__row">
+    <textarea
+      id="replyText"
+      class="message-composer__input"
+      rows="2"
+      maxlength="4096"
+      placeholder="Escribí tu respuesta y presioná Enter para enviarla"
+      [value]="replyText()"
+      [disabled]="isSendingReply()"
+      (input)="updateReplyText($event)"
+      (keydown)="handleKeydown($event)"
+    ></textarea>
+
+    <button
+      type="submit"
+      class="message-composer__send"
+      [disabled]="!canSubmitReply()"
+      [attr.aria-busy]="isSendingReply()"
+    >
+      {{ isSendingReply() ? 'Enviando…' : 'Enviar' }}
+    </button>
+  </div>
+</form>

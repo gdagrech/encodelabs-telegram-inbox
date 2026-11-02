@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 780" width="1060" height="780"
+     font-family="'Red Hat Display', 'Segoe UI', system-ui, sans-serif" role="img"
+     aria-label="C4 level 1 system context diagram of the EncodeLabs conversational inbox">
+  <title>C4 Level 1 — System context: EncodeLabs conversational inbox</title>
+  <desc>
+    An inbox operator uses the EncodeLabs conversational inbox to read and answer the text messages
+    that Telegram users send to the company bot. The inbox talks to the Telegram Bot API to send
+    replies and to register its webhook, and ngrok publishes that webhook on a public HTTPS address.
+  </desc>
+
+  <defs>
+    <marker id="arrowHead" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/>
+    </marker>
+    <style>
+      .person-box { fill: #0f5560; }
+      .system-box { fill: #1f7d86; }
+      .external-box { fill: #5f6b73; }
+      .box-title { fill: #ffffff; font-size: 19px; font-weight: 700; }
+      .box-kind { fill: #cfe4e6; font-size: 13px; font-weight: 500; }
+      .box-text { fill: #e7f1f2; font-size: 13px; }
+      .relation-line { stroke: #4b5563; stroke-width: 1.6; fill: none; }
+      .relation-label { fill: #1f2937; font-size: 12.5px; }
+      .relation-tech { fill: #6b7280; font-size: 11.5px; font-style: italic; }
+      .diagram-title { fill: #111827; font-size: 22px; font-weight: 700; }
+      .diagram-subtitle { fill: #6b7280; font-size: 14px; }
+      .legend-text { fill: #374151; font-size: 12px; }
+    </style>
+  </defs>
+
+  <rect width="1060" height="780" fill="#f7f8f8"/>
+
+  <text class="diagram-title" x="40" y="46">C4 Level 1 — System context</text>
+  <text class="diagram-subtitle" x="40" y="70">EncodeLabs conversational inbox</text>
+
+  <!-- Inbox operator (person) -->
+  <g>
+    <circle cx="190" cy="140" r="22" class="person-box"/>
+    <rect x="80" y="170" width="220" height="104" rx="10" class="person-box"/>
+    <text class="box-title" x="190" y="203" text-anchor="middle">Inbox operator</text>
+    <text class="box-kind" x="190" y="223" text-anchor="middle">[Person]</text>
+    <text class="box-text" x="190" y="248" text-anchor="middle">
+      <tspan x="190">Company agent who answers</tspan>
+      <tspan x="190" dy="16">customer enquiries.</tspan>
+    </text>
+  </g>
+
+  <!-- Telegram user (person) -->
+  <g>
+    <circle cx="850" cy="140" r="22" class="person-box"/>
+    <rect x="740" y="170" width="220" height="104" rx="10" class="person-box"/>
+    <text class="box-title" x="850" y="203" text-anchor="middle">Telegram user</text>
+    <text class="box-kind" x="850" y="223" text-anchor="middle">[Person]</text>
+    <text class="box-text" x="850" y="248" text-anchor="middle">
+      <tspan x="850">Customer who writes to the</tspan>
+      <tspan x="850" dy="16">company bot from Telegram.</tspan>
+    </text>
+  </g>
+
+  <!-- The system under design -->
+  <g>
+    <rect x="80" y="380" width="400" height="150" rx="12" class="system-box"/>
+    <text class="box-title" x="280" y="420" text-anchor="middle">Conversational inbox</text>
+    <text class="box-kind" x="280" y="441" text-anchor="middle">[Software system]</text>
+    <text class="box-text" x="280" y="468" text-anchor="middle">
+      <tspan x="280">Unified web inbox: receives Telegram text</tspan>
+      <tspan x="280" dy="16">messages in near real time, keeps their</tspan>
+      <tspan x="280" dy="16">history and unread state, and sends replies.</tspan>
+    </text>
+  </g>
+
+  <!-- Telegram platform (external) -->
+  <g>
+    <rect x="740" y="380" width="220" height="150" rx="12" class="external-box"/>
+    <text class="box-title" x="850" y="420" text-anchor="middle">Telegram</text>
+    <text class="box-kind" x="850" y="441" text-anchor="middle">[External system]</text>
+    <text class="box-text" x="850" y="468" text-anchor="middle">
+      <tspan x="850">Messaging platform and</tspan>
+      <tspan x="850" dy="16">Bot API. Delivers updates</tspan>
+      <tspan x="850" dy="16">and accepts outgoing</tspan>
+      <tspan x="850" dy="16">messages.</tspan>
+    </text>
+  </g>
+
+  <!-- ngrok (external) -->
+  <g>
+    <rect x="390" y="640" width="280" height="104" rx="12" class="external-box"/>
+    <text class="box-title" x="530" y="675" text-anchor="middle">ngrok</text>
+    <text class="box-kind" x="530" y="695" text-anchor="middle">[External system]</text>
+    <text class="box-text" x="530" y="720" text-anchor="middle">
+      <tspan x="530">Publishes the local webhook on a</tspan>
+      <tspan x="530" dy="16">public HTTPS address.</tspan>
+    </text>
+  </g>
+
+  <!-- Operator -> system -->
+  <path class="relation-line" d="M 190 274 L 190 380" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="204" y="312">Reads conversations,</text>
+  <text class="relation-label" x="204" y="328">sends replies</text>
+  <text class="relation-tech" x="204" y="346">[HTTPS, browser]</text>
+
+  <!-- Telegram user -> Telegram -->
+  <path class="relation-line" d="M 850 274 L 850 380" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="864" y="316">Sends and receives</text>
+  <text class="relation-label" x="864" y="332">text messages</text>
+
+  <!-- System -> Telegram -->
+  <path class="relation-line" d="M 480 420 L 740 420" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="610" y="404" text-anchor="middle">Sends replies, registers webhook</text>
+  <text class="relation-tech" x="610" y="388" text-anchor="middle">[HTTPS, Bot API]</text>
+
+  <!-- Telegram -> ngrok -->
+  <path class="relation-line" d="M 850 530 L 850 692 L 670 692" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="866" y="586">Delivers each update</text>
+  <text class="relation-label" x="866" y="602">to the webhook</text>
+  <text class="relation-tech" x="866" y="620">[HTTPS]</text>
+
+  <!-- ngrok -> system (forwarding) -->
+  <path class="relation-line" d="M 440 640 L 300 530" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="196" y="596">Forwards the update</text>
+  <text class="relation-tech" x="196" y="614">[HTTP]</text>
+
+  <!-- system -> ngrok (public URL discovery) -->
+  <path class="relation-line" d="M 390 530 L 490 640" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="512" y="580">Reads the public URL</text>
+  <text class="relation-label" x="512" y="596">assigned on start-up</text>
+  <text class="relation-tech" x="512" y="614">[HTTP, agent API]</text>
+
+  <!-- Legend -->
+  <g transform="translate(740, 46)">
+    <rect x="0" y="-16" width="18" height="18" rx="4" class="system-box"/>
+    <text class="legend-text" x="26" y="-2">In scope of this delivery</text>
+    <rect x="0" y="10" width="18" height="18" rx="4" class="external-box"/>
+    <text class="legend-text" x="26" y="24">External / third party</text>
+    <rect x="0" y="36" width="18" height="18" rx="4" class="person-box"/>
+    <text class="legend-text" x="26" y="50">Person</text>
+  </g>
+</svg>

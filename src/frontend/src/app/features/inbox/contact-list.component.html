@@ -1,0 +1,52 @@
+<section class="contact-list" aria-label="Contactos">
+  <header class="contact-list__header">
+    <h2 class="contact-list__title">Contactos</h2>
+    @if (isLoading() && hasLoaded()) {
+      <span class="contact-list__refreshing" aria-live="polite">Actualizando…</span>
+    }
+  </header>
+
+  @if (!hasLoaded() && isLoading()) {
+    <p class="contact-list__placeholder" role="status">Cargando contactos…</p>
+  } @else if (contacts().length === 0) {
+    <div class="contact-list__placeholder">
+      <p class="contact-list__placeholder-title">Todavía no hay conversaciones</p>
+      <p>
+        Escribile a tu bot de Telegram desde cualquier cuenta y el contacto va a aparecer acá
+        automáticamente.
+      </p>
+    </div>
+  } @else {
+    <ul class="contact-list__items">
+      @for (contact of contacts(); track contact.contactId) {
+        <li>
+          <button
+            type="button"
+            class="contact-row"
+            [class.contact-row--selected]="contact.contactId === selectedContactId()"
+            [attr.aria-current]="contact.contactId === selectedContactId() ? 'true' : null"
+            [attr.aria-label]="buildContactAriaLabel(contact)"
+            (click)="contactSelected.emit(contact.contactId)"
+          >
+            <span class="contact-row__avatar" aria-hidden="true">
+              {{ buildInitials(contact.displayName) }}
+            </span>
+
+            <span class="contact-row__body">
+              <span class="contact-row__top">
+                <span class="contact-row__name">{{ contact.displayName }}</span>
+                <span class="contact-row__time">{{ contact.lastActivityAtUtc | inboxTimestamp }}</span>
+              </span>
+              <span class="contact-row__bottom">
+                <span class="contact-row__preview">{{ buildPreviewLabel(contact) }}</span>
+                @if (contact.unreadMessageCount > 0) {
+                  <span class="contact-row__unread-badge">{{ contact.unreadMessageCount }}</span>
+                }
+              </span>
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</section>

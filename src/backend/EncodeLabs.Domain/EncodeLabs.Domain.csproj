@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The domain layer is deliberately dependency-free: no EF Core, no ASP.NET, no Telegram SDK. -->
+
+</Project>

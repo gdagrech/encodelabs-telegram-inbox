@@ -1,0 +1,19 @@
+# ngrok agent configuration.
+#
+# web_addr must listen on all interfaces: the API container discovers the public HTTPS URL by
+# querying this agent's local inspection API at http://ngrok:4040/api/tunnels, and the default
+# 127.0.0.1 binding would only be reachable from inside the ngrok container itself.
+#
+# The authtoken is NOT stored here. The agent reads it from the NGROK_AUTHTOKEN environment
+# variable, which docker-compose.yml takes from .env.
+version: "2"
+
+web_addr: 0.0.0.0:4040
+log_level: info
+log_format: logfmt
+log: stdout
+
+tunnels:
+  inbox-api:
+    proto: http
+    addr: api:8080

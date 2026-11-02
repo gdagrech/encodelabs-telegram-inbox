@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 980" width="1240" height="980"
+     font-family="'Red Hat Display', 'Segoe UI', system-ui, sans-serif" role="img"
+     aria-label="C4 level 2 container diagram of the EncodeLabs conversational inbox">
+  <title>C4 Level 2 — Containers: EncodeLabs conversational inbox</title>
+  <desc>
+    Five Docker Compose containers make up the system: an nginx-served Angular single page
+    application, one ASP.NET Core host that serves the HTTP API, the Telegram webhook, the SignalR
+    hub and the RabbitMQ consumer, a RabbitMQ broker, a PostgreSQL database and the ngrok agent.
+  </desc>
+
+  <defs>
+    <marker id="arrowHead" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/>
+    </marker>
+    <style>
+      .person-box { fill: #0f5560; }
+      .container-box { fill: #1f7d86; }
+      .datastore-box { fill: #19636b; }
+      .external-box { fill: #5f6b73; }
+      .boundary { fill: none; stroke: #1f7d86; stroke-width: 1.6; stroke-dasharray: 8 6; }
+      .boundary-label { fill: #1f7d86; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+      .box-title { fill: #ffffff; font-size: 17px; font-weight: 700; }
+      .box-kind { fill: #cfe4e6; font-size: 12px; font-weight: 500; }
+      .box-text { fill: #e7f1f2; font-size: 12px; }
+      .relation-line { stroke: #4b5563; stroke-width: 1.6; fill: none; }
+      .relation-label { fill: #1f2937; font-size: 12px; }
+      .relation-tech { fill: #6b7280; font-size: 11px; font-style: italic; }
+      .diagram-title { fill: #111827; font-size: 22px; font-weight: 700; }
+      .diagram-subtitle { fill: #6b7280; font-size: 14px; }
+      .legend-text { fill: #374151; font-size: 12px; }
+    </style>
+  </defs>
+
+  <rect width="1240" height="980" fill="#f7f8f8"/>
+
+  <text class="diagram-title" x="40" y="46">C4 Level 2 — Containers</text>
+  <text class="diagram-subtitle" x="40" y="70">EncodeLabs conversational inbox · one Docker Compose stack</text>
+
+  <!-- Compose boundary -->
+  <rect class="boundary" x="40" y="110" width="900" height="820" rx="16"/>
+  <text class="boundary-label" x="62" y="138">CONVERSATIONAL INBOX — docker compose up</text>
+
+  <!-- Inbox operator -->
+  <g>
+    <circle cx="150" cy="200" r="20" class="person-box"/>
+    <rect x="60" y="226" width="180" height="76" rx="10" class="person-box"/>
+    <text class="box-title" x="150" y="255" text-anchor="middle">Inbox operator</text>
+    <text class="box-kind" x="150" y="274" text-anchor="middle">[Person]</text>
+    <text class="box-text" x="150" y="293" text-anchor="middle">Answers enquiries</text>
+  </g>
+
+  <!-- Frontend container -->
+  <g>
+    <rect x="60" y="360" width="250" height="130" rx="12" class="container-box"/>
+    <text class="box-title" x="185" y="394" text-anchor="middle">Inbox web app</text>
+    <text class="box-kind" x="185" y="413" text-anchor="middle">[Container: Angular 22 + nginx]</text>
+    <text class="box-text" x="185" y="438" text-anchor="middle">
+      <tspan x="185">Two-panel desktop inbox.</tspan>
+      <tspan x="185" dy="15">Serves the bundle and proxies</tspan>
+      <tspan x="185" dy="15">/api and /hubs to the API.</tspan>
+    </text>
+  </g>
+
+  <!-- API container -->
+  <g>
+    <rect x="420" y="330" width="420" height="190" rx="12" class="container-box"/>
+    <text class="box-title" x="630" y="364" text-anchor="middle">Inbox API</text>
+    <text class="box-kind" x="630" y="383" text-anchor="middle">[Container: ASP.NET Core 10 — single host]</text>
+    <text class="box-text" x="630" y="410" text-anchor="middle">
+      <tspan x="630">Serves the inbox HTTP API, the public Telegram</tspan>
+      <tspan x="630" dy="15">webhook and the SignalR hub, and hosts the RabbitMQ</tspan>
+      <tspan x="630" dy="15">consumer and the webhook-registration background</tspan>
+      <tspan x="630" dy="15">services. Layers: Domain, Application,</tspan>
+      <tspan x="630" dy="15">Infrastructure, Api.</tspan>
+    </text>
+  </g>
+
+  <!-- ngrok agent -->
+  <g>
+    <rect x="60" y="690" width="250" height="124" rx="12" class="external-box"/>
+    <text class="box-title" x="185" y="724" text-anchor="middle">ngrok agent</text>
+    <text class="box-kind" x="185" y="743" text-anchor="middle">[Container: ngrok 3]</text>
+    <text class="box-text" x="185" y="768" text-anchor="middle">
+      <tspan x="185">Tunnels the API port and</tspan>
+      <tspan x="185" dy="15">publishes the assigned URL</tspan>
+      <tspan x="185" dy="15">on its agent API (:4040).</tspan>
+    </text>
+  </g>
+
+  <!-- PostgreSQL -->
+  <g>
+    <rect x="400" y="690" width="240" height="124" rx="12" class="datastore-box"/>
+    <text class="box-title" x="520" y="724" text-anchor="middle">Inbox database</text>
+    <text class="box-kind" x="520" y="743" text-anchor="middle">[Container: PostgreSQL 18]</text>
+    <text class="box-text" x="520" y="768" text-anchor="middle">
+      <tspan x="520">Contacts and messages with</tspan>
+      <tspan x="520" dy="15">direction, timestamps and</tspan>
+      <tspan x="520" dy="15">read state.</tspan>
+    </text>
+  </g>
+
+  <!-- RabbitMQ -->
+  <g>
+    <rect x="680" y="690" width="240" height="124" rx="12" class="datastore-box"/>
+    <text class="box-title" x="800" y="724" text-anchor="middle">Message broker</text>
+    <text class="box-kind" x="800" y="743" text-anchor="middle">[Container: RabbitMQ 4]</text>
+    <text class="box-text" x="800" y="768" text-anchor="middle">
+      <tspan x="800">Durable queue for inbound</tspan>
+      <tspan x="800" dy="15">updates, plus its dead-letter</tspan>
+      <tspan x="800" dy="15">queue.</tspan>
+    </text>
+  </g>
+
+  <!-- Telegram (external) -->
+  <g>
+    <rect x="1000" y="330" width="220" height="150" rx="12" class="external-box"/>
+    <text class="box-title" x="1110" y="368" text-anchor="middle">Telegram</text>
+    <text class="box-kind" x="1110" y="387" text-anchor="middle">[External system]</text>
+    <text class="box-text" x="1110" y="414" text-anchor="middle">
+      <tspan x="1110">Bot API and messaging</tspan>
+      <tspan x="1110" dy="15">platform.</tspan>
+    </text>
+  </g>
+
+  <!-- Telegram user -->
+  <g>
+    <circle cx="1110" cy="190" r="20" class="person-box"/>
+    <rect x="1020" y="216" width="180" height="76" rx="10" class="person-box"/>
+    <text class="box-title" x="1110" y="245" text-anchor="middle">Telegram user</text>
+    <text class="box-kind" x="1110" y="264" text-anchor="middle">[Person]</text>
+    <text class="box-text" x="1110" y="283" text-anchor="middle">Writes to the bot</text>
+  </g>
+
+  <!-- Operator -> web app -->
+  <path class="relation-line" d="M 150 302 L 150 360" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="164" y="326">Uses</text>
+  <text class="relation-tech" x="164" y="342">[HTTPS :4200]</text>
+
+  <!-- Web app -> API -->
+  <path class="relation-line" d="M 310 400 L 420 380" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="365" y="318" text-anchor="middle">Reads contacts, history; sends replies</text>
+  <text class="relation-tech" x="365" y="302" text-anchor="middle">[JSON over HTTP]</text>
+
+  <!-- API -> web app (SignalR) -->
+  <path class="relation-line" d="M 420 470 L 310 492" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="412" y="556" text-anchor="end">Pushes new messages and</text>
+  <text class="relation-label" x="412" y="572" text-anchor="end">read-state changes</text>
+  <text class="relation-tech" x="412" y="588" text-anchor="end">[SignalR / WebSocket]</text>
+
+  <!-- API <-> ngrok -->
+  <path class="relation-line" d="M 440 520 L 440 640 L 185 640 L 185 690"
+        marker-start="url(#arrowHead)" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="312" y="618" text-anchor="middle">↑ Forwards the webhook request · ↓ Asks for the assigned public URL</text>
+  <text class="relation-tech" x="312" y="632" text-anchor="middle">[HTTP :8080 / HTTP :4040]</text>
+
+  <!-- API -> PostgreSQL -->
+  <path class="relation-line" d="M 540 520 L 500 690" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="552" y="580">Reads and writes</text>
+  <text class="relation-tech" x="552" y="596">[EF Core, TCP 5432]</text>
+
+  <!-- API -> RabbitMQ -->
+  <path class="relation-line" d="M 740 520 L 740 690" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="728" y="622" text-anchor="end">Publishes accepted update</text>
+  <text class="relation-tech" x="728" y="638" text-anchor="end">[AMQP, publisher confirms]</text>
+
+  <!-- RabbitMQ -> API -->
+  <path class="relation-line" d="M 830 690 L 830 520" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="846" y="622">Delivers the update</text>
+  <text class="relation-tech" x="846" y="638">[AMQP, manual ack]</text>
+
+  <!-- API -> Telegram -->
+  <path class="relation-line" d="M 840 368 L 1000 368" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="920" y="336" text-anchor="middle">sendMessage, setWebhook</text>
+  <text class="relation-tech" x="920" y="320" text-anchor="middle">[HTTPS, Bot API]</text>
+
+  <!-- Telegram user -> Telegram -->
+  <path class="relation-line" d="M 1110 292 L 1110 330" marker-end="url(#arrowHead)"/>
+
+  <!-- Telegram -> ngrok -->
+  <path class="relation-line" d="M 1150 480 L 1150 872 L 185 872 L 185 814" marker-end="url(#arrowHead)"/>
+  <text class="relation-label" x="650" y="864" text-anchor="middle">Delivers each update to the public webhook URL</text>
+  <text class="relation-tech" x="650" y="894" text-anchor="middle">[HTTPS, authenticated with the X-Telegram-Bot-Api-Secret-Token header]</text>
+
+  <!-- Legend -->
+  <g transform="translate(975, 560)">
+    <rect x="0" y="-14" width="18" height="18" rx="4" class="container-box"/>
+    <text class="legend-text" x="26" y="0">Application container</text>
+    <rect x="0" y="12" width="18" height="18" rx="4" class="datastore-box"/>
+    <text class="legend-text" x="26" y="26">Stateful container</text>
+    <rect x="0" y="38" width="18" height="18" rx="4" class="external-box"/>
+    <text class="legend-text" x="26" y="52">Third party</text>
+    <rect x="0" y="64" width="18" height="18" rx="4" class="person-box"/>
+    <text class="legend-text" x="26" y="78">Person</text>
+  </g>
+</svg>

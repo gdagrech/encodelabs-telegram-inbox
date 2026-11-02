@@ -1,0 +1,53 @@
+<div class="inbox-shell">
+  <header class="inbox-header">
+    <div class="inbox-brand">
+      <span class="inbox-brand__mark" aria-hidden="true">e</span>
+      <div class="inbox-brand__text">
+        <p class="inbox-brand__company">encodelabs</p>
+        <h1 class="inbox-brand__title">Bandeja conversacional</h1>
+      </div>
+    </div>
+
+    <div class="inbox-header__status">
+      @if (totalUnreadMessageCount() > 0) {
+        <span class="inbox-header__unread" aria-live="polite">
+          {{ totalUnreadMessageCount() }} mensaje(s) sin leer
+        </span>
+      }
+      <span
+        class="connection-indicator"
+        [class.connection-indicator--online]="isRealtimeConnected()"
+        [attr.aria-label]="'Estado de la conexión en tiempo real: ' + connectionStateLabel()"
+      >
+        <span class="connection-indicator__dot" aria-hidden="true"></span>
+        {{ connectionStateLabel() }}
+      </span>
+    </div>
+  </header>
+
+  @if (errorMessage(); as currentErrorMessage) {
+    <div class="inbox-error" role="alert">
+      <span class="inbox-error__text">{{ currentErrorMessage }}</span>
+      <span class="inbox-error__actions">
+        <button type="button" class="inbox-error__button" (click)="retryLoad()">Reintentar</button>
+        <button type="button" class="inbox-error__button" (click)="dismissError()">Cerrar</button>
+      </span>
+    </div>
+  }
+
+  <main class="inbox-columns">
+    <app-contact-list
+      [contacts]="contacts()"
+      [selectedContactId]="selectedContactId()"
+      [isLoading]="isLoadingContacts()"
+      [hasLoaded]="hasLoadedContacts()"
+      (contactSelected)="selectContact($event)"
+    />
+
+    <app-conversation-panel
+      [contact]="selectedContact()"
+      [messages]="conversationMessages()"
+      [isLoading]="isLoadingConversation()"
+    />
+  </main>
+</div>

@@ -1,0 +1,138 @@
+.contact-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-surface-default);
+  border-right: 1px solid var(--color-border-default);
+}
+
+.contact-list__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.contact-list__title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.contact-list__refreshing {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.contact-list__placeholder {
+  padding: var(--space-5) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+
+  p {
+    margin: 0 0 var(--space-2);
+  }
+}
+
+.contact-list__placeholder-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.contact-list__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.contact-row {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--color-neutral-10);
+  border-left: 3px solid transparent;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+
+  &:hover {
+    background: var(--color-brand-lightest);
+  }
+}
+
+.contact-row--selected {
+  background: var(--color-brand-lightest);
+  border-left-color: var(--color-brand-primary);
+}
+
+.contact-row__avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+}
+
+.contact-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.contact-row__top,
+.contact-row__bottom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.contact-row__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-row__time {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.contact-row__preview {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-row__unread-badge {
+  flex: 0 0 auto;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-accent);
+  color: var(--color-text-inverse);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}

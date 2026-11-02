@@ -1,0 +1,60 @@
+@let selectedContact = contact();
+
+<section class="conversation-panel" aria-label="Conversación seleccionada">
+  @if (selectedContact === null) {
+    <div class="conversation-panel__empty">
+      <h2 class="conversation-panel__empty-title">Ninguna conversación seleccionada</h2>
+      <p>Elegí un contacto del panel izquierdo para ver su historial y responder.</p>
+    </div>
+  } @else {
+    <header class="conversation-panel__header">
+      <div>
+        <h2 class="conversation-panel__name">{{ selectedContact.displayName }}</h2>
+        @if (selectedContact.username) {
+          <p class="conversation-panel__username">&#64;{{ selectedContact.username }}</p>
+        }
+      </div>
+      @if (selectedContact.unreadMessageCount > 0) {
+        <span class="conversation-panel__unread" aria-live="polite">
+          {{ selectedContact.unreadMessageCount }} sin leer
+        </span>
+      }
+    </header>
+
+    <div #messageScrollContainer class="conversation-panel__messages">
+      @if (isLoading() && messages().length === 0) {
+        <p class="conversation-panel__status" role="status">Cargando historial…</p>
+      } @else if (messages().length === 0) {
+        <p class="conversation-panel__status">
+          Todavía no hay mensajes en esta conversación.
+        </p>
+      } @else {
+        <ol class="message-list">
+          @for (message of messages(); track message.messageId) {
+            <li
+              class="message-list__item"
+              [class.message-list__item--outgoing]="message.direction === 'Outgoing'"
+            >
+              <article
+                class="message-bubble"
+                [class.message-bubble--outgoing]="message.direction === 'Outgoing'"
+              >
+                <p class="message-bubble__text">{{ message.text }}</p>
+                <footer class="message-bubble__meta">
+                  <span class="message-bubble__author">
+                    {{ message.direction === 'Outgoing' ? 'Vos' : selectedContact.displayName }}
+                  </span>
+                  <time [attr.datetime]="message.sentAtUtc">
+                    {{ message.sentAtUtc | inboxTimestamp }}
+                  </time>
+                </footer>
+              </article>
+            </li>
+          }
+        </ol>
+      }
+    </div>
+
+    <app-message-composer [contactDisplayName]="selectedContact.displayName" />
+  }
+</section>
