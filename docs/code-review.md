@@ -227,6 +227,27 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
 - **Estado:** CORREGIDO. Rechazo verificado en vivo con el bot bloqueado (`502` + descripción de
   Telegram). El camino `504` no se forzó: exigiría cortar la salida a `api.telegram.org`.
 
+### CR-017 — Al reconectar se pedía una conversación que ya no existía
+- **Severidad:** MEDIA
+- **Dónde:** `src/frontend/src/app/core/services/inbox-store.ts`, `reloadInboxState`
+- **Evidencia:** con una conversación abierta y el navegador sin tocar, bajar y volver a levantar el
+  stack con `docker compose down --volumes` hacía aparecer **por sí solo** el banner `La conversación
+  ya no existe. Actualizá la bandeja.` junto a `Todavía no hay conversaciones`: dos afirmaciones que
+  se contradicen en la misma pantalla. Se dispara en la reconexión de SignalR, sin intervención del
+  operador. Un `F5` lo limpiaba, porque la selección sólo vive en memoria.
+- **Causa:** `reloadInboxState` recarga el listado y después pide el historial de la conversación
+  seleccionada **sin comprobar que ese contacto siga existiendo**. Con la base reseteada, el
+  contacto ya no está, la API responde `404` y el cliente lo trata como un error que mostrar.
+- **Por qué importa:** el banner no es accionable. "Actualizá la bandeja" no arregla nada, porque
+  la bandeja ya está actualizada: lo que sobra es la selección en memoria.
+- **Corrección:** si el contacto abierto no aparece en el listado recién traído, se limpia la
+  selección y se vacía la conversación en vez de pedir su historial.
+- **Cómo apareció:** es preexistente, pero estaba oculto. Antes de corregir CR-010 el mismo caso
+  mostraba `Contact … was not found.` en inglés, y se leía como ruido del servidor. Localizar el
+  mensaje lo volvió legible, y recién ahí se notó que la frase era absurda. **Una corrección
+  cosmética destapó un defecto de comportamiento.**
+- **Estado:** CORREGIDO y verificado reproduciendo el escenario.
+
 ## Comandos efectivamente ejecutados
 
 | Comando | Resultado |

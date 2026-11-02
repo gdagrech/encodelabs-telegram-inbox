@@ -1,114 +1,83 @@
 # Trabajo con IA
 
-## 1. Herramientas usadas
+## 1. Herramientas
 
-**Claude Code** (Anthropic, modelo Opus 5) corriendo en la terminal, con acceso al sistema de
-archivos y a la shell del proyecto. Fue la única herramienta de IA usada: no hubo Copilot, ni
-ChatGPT, ni generadores de scaffolding por IA además del `ng new` oficial de Angular.
+**Claude Code** (Anthropic, modelo Opus 5) en la terminal, con acceso al sistema de archivos y a la
+shell. Fue la única herramienta de IA usada: ni Copilot, ni ChatGPT, ni generadores de scaffolding
+más allá del `ng new` oficial.
 
 La decisión de fondo fue usar un asistente **con acceso a la shell** en lugar de uno de chat: lo que
 importaba no era generar código, sino que cada afirmación quedara respaldada por un comando
-ejecutado. Casi todos los hallazgos reales de `code-review.md` salieron de compilar y correr, no de
-leer.
+ejecutado. Casi todos los hallazgos de `code-review.md` salieron de compilar y correr, no de leer.
 
 ## 2. Agentes y roles
 
-**No se usaron múltiples agentes.** Un único agente ejecutó todo el trabajo, pero con tres modos
-separados explícitamente en el prompt maestro, porque mezclarlos degrada los tres:
+**No se usaron múltiples agentes.** Un único agente ejecutó todo, con tres modos separados en el
+prompt maestro: **arquitectura** (modelo de dominio, límites de capas, topología de RabbitMQ,
+mecanismo de corte del estado de leído; produjo los ADRs *antes* del código, no después para
+justificarlo), **implementación** (rebanadas verticales: infraestructura → webhook/cola/persistencia
+→ API → SignalR → envío → UI → documentación) y **revisión**.
 
-| Modo | Qué hizo |
-|---|---|
-| **Arquitectura** | Modelo de dominio, límites de capas, topología de RabbitMQ, mecanismo de corte para el estado de leído. Produjo los ADRs *antes* de escribir el código, no después para justificarlo. |
-| **Implementación** | Código en rebanadas verticales: infraestructura → webhook/cola/persistencia → API → SignalR → envío → UI → documentación. |
-| **Revisión** | Pasada de auto-revisión sobre código ya escrito, buscando condiciones de carrera, orden de fallos y fugas de secretos. Produjo CR-003 a CR-009. |
-
-Elegí no repartir esto en subagentes: el problema es chico y acoplado (el estado de leído toca
-dominio, SQL, API y cliente a la vez), y un agente con todo el contexto encuentra inconsistencias
-entre capas que agentes aislados se pierden.
+No repartí esto en subagentes: el problema es chico y acoplado —el estado de leído toca dominio,
+SQL, API y cliente a la vez— y un agente con todo el contexto encuentra inconsistencias entre capas
+que agentes aislados se pierden.
 
 ## 3. Prompts representativos
 
-**a) Prompt maestro** (completo en `PROMPT_FOR_CLAUDE.md`, ~200 líneas). Lo que más rindió fueron
-las restricciones negativas y los criterios de honestidad:
+**a) Prompt maestro** (completo en `PROMPT_FOR_CLAUDE.md`). Lo que más rindió fueron las
+restricciones negativas y los criterios de honestidad:
 
 > "Entregá la solución **más simple, completa, mantenible y demostrablemente funcional**. (…) No
 > introduzcas un worker desplegable aparte, microservicios, CQRS/MediatR, event sourcing, Redis,
-> Kubernetes ni autenticación. (…) Prohibidos nombres como `c`, `x`, `tmp`, `data1`, `res`, `msg`.
-> (…) Verificá con bot real SOLO si se proveen credenciales; en caso contrario marcá el E2E de
-> Telegram claramente como NO VERIFICADO. No inventes resultados aprobados."
+> Kubernetes ni autenticación. (…) Prohibidos nombres como `c`, `x`, `tmp`, `res`, `msg`. (…)
+> Verificá con bot real SOLO si se proveen credenciales; en caso contrario marcá el E2E de Telegram
+> claramente como NO VERIFICADO. No inventes resultados aprobados."
 
-Acompañado de un `CLAUDE.md` en el repositorio con las reglas permanentes (dirección de
-dependencias, convenciones de nombres, qué va en `docs/`), que el asistente relee en cada sesión.
-
-**b) Prompt de diseño sobre el punto más difícil del enunciado** — la carrera del estado de leído:
+**b) Sobre el punto más difícil del enunciado**, la carrera del estado de leído:
 
 > "El requisito 4 dice marcar como leídos los mensajes al abrir la conversación, sin marcar por
 > error los que llegan *durante* esa operación. Los timestamps de Telegram tienen resolución de un
 > segundo y pueden empatar. Proponé un mecanismo determinista y explicá qué garantiza."
 
-De ahí salió la columna identidad `SequenceNumber` y el corte `readUpToSequenceNumber` que viaja
-desde el cliente, en vez del `UPDATE ... WHERE is_read = false` ingenuo.
+De ahí salió la columna identidad `SequenceNumber` y el corte `readUpToSequenceNumber`, en vez del
+`UPDATE … WHERE is_read = false` ingenuo.
 
-**c) Prompt de revisión, ya con el código escrito:**
+**c) De revisión**, ya con el código escrito: *"…para cada hallazgo: dónde, por qué importa, y el
+escenario concreto que lo dispara. **No listes hallazgos que no puedas disparar con un escenario.**"*
+Esa última frase es la que importa: sin ella la revisión devuelve observaciones de estilo.
 
-> "Revisá el código buscando condiciones de carrera, orden de operaciones ante fallos y fugas de
-> secretos. Para cada hallazgo: dónde, por qué importa, y el escenario concreto que lo dispara. No
-> listes hallazgos que no puedas disparar con un escenario."
+## 4. Cómo se validó
 
-La última frase es la que importa: sin ella la revisión devuelve observaciones de estilo. Con ella
-aparecieron CR-003 (el reintento de migraciones no atrapaba las excepciones envueltas por EF Core) y
-CR-005 (un mensaje empujado por SignalR durante la carga del historial quedaba pisado).
+Lo generado **no se aceptó por inspección visual**. El filtro, en orden de rendimiento:
 
-## 4. Cómo se revisó y validó lo generado
+1. **Levantar el stack y ejercitarlo**, no sólo compilarlo. Encontró CR-013 (PostgreSQL 18 cambió el
+   punto de montaje y `docker compose up` no arrancaba) y, con bot real, CR-016 y CR-017.
+2. **Compilar siempre**, con `TreatWarningsAsErrors` y `strict` + `strictTemplates`. Así cayó CR-001:
+   una vulnerabilidad conocida (`NU1903`) que entraba de forma transitiva.
+3. **Verificar las APIs de terceros contra el compilador, no contra la memoria del modelo.** Las
+   superficies de RabbitMQ.Client 7, Telegram.Bot 22 y EF Core 10 cambiaron; compilar Infrastructure
+   temprano y aislada hizo aparecer tres métodos inventados.
+4. **Verificar versiones contra el registro real** (`api.nuget.org`, `npm view`), no asumirlas.
+5. **Tests de dominio** sobre las ramas que un modelo tiende a simplificar: contacto sin nombre ni
+   username, `MarkAsRead` repetido, marcado sobre un saliente. 25 tests, 0 fallos.
+6. **Mirar los artefactos**: la migración se leyó línea por línea; los SVG de C4 se renderizaron y
+   el nivel 2 se rehízo porque tenía etiquetas superpuestas.
+7. **Paleta tomada del sitio real**: se extrajeron los tokens del CSS de encodelabs.com.ar en vez de
+   inventar "colores tipo EncodeLabs".
 
-Lo generado por IA **no se aceptó por inspección visual**. El filtro fue, en orden:
+## 5. Estado de la validación humana
 
-1. **Compilar siempre.** `TreatWarningsAsErrors` activo en todo el backend y `strict` +
-   `strictTemplates` en TypeScript. Así se cayó CR-001: `dotnet build` falló con `NU1903` por una
-   vulnerabilidad conocida en `Microsoft.OpenApi` 2.0.0, que entraba de forma transitiva. Se eliminó
-   el paquete en vez de convivir con la advertencia.
-2. **Verificar las APIs de terceros contra el compilador, no contra la memoria del modelo.** Las
-   superficies de RabbitMQ.Client 7, Telegram.Bot 22 y EF Core 10 cambiaron respecto de versiones
-   anteriores. Se compiló la capa de Infrastructure de forma aislada y temprano, precisamente para
-   que cualquier método inventado apareciera como error de compilación. Aparecieron tres y se
-   corrigieron.
-3. **Verificar las versiones contra el registro real.** Las versiones de paquetes se consultaron a
-   `api.nuget.org` y a `npm view` antes de fijarlas, no se asumieron. Así se detectó que
-   `Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.3 exige EF Core ≥ 10.0.4, y que el CLI de Angular
-   requiere Node ≥ 24.15 (CR-012).
-4. **Tests unitarios sobre el dominio**, escritos para las ramas que un modelo tiende a simplificar:
-   contacto sin nombre ni username, nombre con sólo espacios, `MarkAsRead` repetido, marcado sobre
-   un mensaje saliente. 25 tests, 0 fallos.
-5. **Mirar los artefactos generados.** La migración de EF se leyó línea por línea para confirmar la
-   columna identidad, `timestamp with time zone` y el índice único de deduplicación. Los SVG de C4
-   se renderizaron a PNG y se inspeccionaron visualmente: la primera versión del nivel 2 tenía
-   etiquetas superpuestas y se rehízo con rutas ortogonales.
-6. **Levantar el stack y ejercitarlo, no sólo compilarlo.** Es lo que más defectos encontró. El
-   primer `docker compose up` falló con `container for service "postgres" is unhealthy`: la imagen
-   de PostgreSQL 18 cambió el punto de montaje del directorio de datos (CR-013). Ningún análisis
-   estático lo habría detectado. Con el stack arriba se le inyectaron al webhook las mismas cargas
-   JSON que manda Telegram, lo que permitió verificar de verdad la deduplicación, el filtrado de
-   updates fuera de alcance y —lo más importante— el corte del marcado como leído.
-7. **Paleta tomada del sitio real.** En vez de inventar "colores tipo EncodeLabs", se descargó el CSS
-   de encodelabs.com.ar y se extrajeron los tokens que usa (rampa teal en `oklch`, grises neutros,
-   Red Hat Display). La bandeja está inspirada en esa identidad, no es una copia del sitio.
-
-## 5. Lo que queda pendiente de validación humana
-
-Marcado como tal, sin adornos:
-
-- ☑ `docker compose up --build`: ejecutado.
-- ☑ **Prueba con bot y túnel reales**, con credenciales del autor: registro automático del webhook,
-  mensajes entrantes, respuesta saliente, caída de RabbitMQ, caída de PostgreSQL y rotación de la
-  URL de ngrok. 15 de los 16 casos de la matriz quedaron cerrados.
-- ☑ **Inspección visual de la interfaz** en el navegador, operada por el autor.
+- ☑ Prueba con **bot y túnel reales**, con credenciales del autor, operando la interfaz en el
+  navegador. Los 18 casos de la matriz quedaron cerrados.
 - ☐ **Revisión humana del código** por el autor antes de publicar el repositorio.
 
-Esa corrida corrigió un juicio previo: CR-010 (mezcla de idiomas en los errores) se había aceptado
-como riesgo sobre el papel, y ver el banner real con un bot bloqueado lo volvió indefendible. Al
-corregirlo apareció CR-016, que ningún análisis estático habría marcado: un rechazo de Telegram y
-una Bot API inalcanzable daban el mismo código de estado, pese a ser accionables al revés. Es el
-mismo patrón que CR-013 — **los defectos que importan aparecieron ejecutando, no leyendo.**
+Esa corrida destapó tres defectos en cadena. CR-010 (mezcla de idiomas en los errores) se había
+aceptado como riesgo *sobre el papel*; ver el banner real con un bot bloqueado lo volvió
+indefendible. Al corregirlo apareció CR-016: un rechazo de Telegram y una Bot API inalcanzable
+daban el mismo código de estado, siendo accionables al revés. Y traducir el mensaje volvió legible a
+CR-017, que llevaba todo el tiempo ahí: al reconectar, el cliente pedía una conversación que ya no
+existía. En inglés se leía como ruido del servidor; en español, como un absurdo.
 
-El estado exacto de cada requisito está en `validation-checklist.md`, que distingue entre lo
-ejecutado y lo pendiente. Ningún ítem no ejecutado se reporta como aprobado.
+**Los defectos que importaron aparecieron ejecutando, no leyendo** — y uno sólo apareció después de
+un cambio aparentemente cosmético. El estado exacto de cada requisito está en
+`validation-checklist.md`; ningún ítem no ejecutado se reporta como aprobado.

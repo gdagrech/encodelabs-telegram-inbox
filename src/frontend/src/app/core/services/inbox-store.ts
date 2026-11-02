@@ -81,9 +81,23 @@ export class InboxStore {
     await this.loadContacts();
 
     const selectedContactId = this.selectedContactIdState();
-    if (selectedContactId !== null) {
-      await this.loadConversation(selectedContactId);
+    if (selectedContactId === null) {
+      return;
     }
+
+    // The open contact may be gone, for instance after the database was reset. Forgetting the
+    // selection is the correct recovery: asking for its history would raise an error about a
+    // conversation the operator can no longer act on, contradicting the empty state beside it.
+    const isContactStillListed = this.contactsState()
+      .some((contact) => contact.contactId === selectedContactId);
+
+    if (!isContactStillListed) {
+      this.selectedContactIdState.set(null);
+      this.conversationMessagesState.set([]);
+      return;
+    }
+
+    await this.loadConversation(selectedContactId);
   }
 
   async selectContact(contactId: string): Promise<void> {

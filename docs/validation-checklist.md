@@ -54,7 +54,7 @@ Estado real de cada requisito, con la evidencia que lo respalda. Se distingue ex
 | Tiempo real | Backend ↔ frontend | **PASS** | Un mensaje real apareció en la bandeja **sin recargar**. Ante `docker compose restart api` el indicador pasó de "En línea" a "Reconectando…" y volvió solo, con la conversación intacta. |
 | Telegram | Bot propio y webhook registrado automáticamente al levantar, con la URL de ngrok | **PASS** | `Telegram webhook registered for https://3ed5-….ngrok-free.app/api/telegram/webhook` sin intervención manual, y `getWebhookInfo` lo confirma desde el lado de Telegram. Al reiniciar el túnel, la API arrancó antes que él: `Attempt 1/30: no public HTTPS tunnel available yet` y se re-registró con la URL nueva. |
 | Exposición | ngrok | **PASS** | Túnel abierto contra el puerto de la API (no el del frontend). `web_addr: 0.0.0.0:4040` verificado: la API consulta la API de agente del contenedor para descubrir la URL pública. |
-| Ejecución | `docker compose up` tras completar `.env` | **PASS** | Los 5 servicios arrancan; `postgres` y `rabbitmq` quedan `healthy`; migraciones aplicadas en el intento 1. Requirió corregir CR-013 (punto de montaje del volumen en PostgreSQL 18). |
+| Ejecución | `docker compose up` tras completar `.env` | **PASS** | Arranque en frío real desde cero (`down --volumes` + `up --build`): **21 segundos** hasta el webhook registrado, sin un solo paso manual. Requirió corregir CR-013 (punto de montaje del volumen en PostgreSQL 18). |
 
 ## 3. Entregables (enunciado §5)
 
@@ -95,7 +95,9 @@ inyectando cargas al webhook (**inyectado**) o con el bot, el túnel y el navega
 | E-13 | Reconexión del cliente | `docker compose restart api` (15 s de caída): el indicador pasó a "Reconectando…" y volvió solo a "En línea", con la conversación cargada. | real | **☑** |
 | E-14 | Refresh del navegador | `F5` con la conversación abierta: historial completo, orden y selección recuperados desde la API. | real | **☑** |
 | E-15 | URL de ngrok nueva | `restart ngrok api` → `Attempt 1/30: no public HTTPS tunnel available yet` y registro con la URL nueva (`4ebf-…`). La entrega siguiente llegó por ella. | real | **☑** |
-| E-16 | Estados vacíos | Pendiente: se cierra en el arranque limpio final (`down --volumes` + `up`). La API sí devolvió `[]` con la base vacía. | — | ☐ |
+| E-16 | Estados vacíos | Con la base recién creada: `Todavía no hay conversaciones` en la columna izquierda y `Ninguna conversación seleccionada` en el panel, ambos con una indicación de qué hacer. | real | **☑** |
+| E-17 | Contacto abierto que desaparece | Con una conversación abierta y el navegador sin tocar, `down --volumes` + `up`: la bandeja vuelve sola a los estados vacíos, el indicador regresa a "En línea" y **no** aparece ningún banner de error. Regresión de CR-017. | real | **☑** |
+| E-18 | Arranque en frío desde cero | `down --volumes` + `up --build`: **21 segundos** hasta `Telegram webhook registered`. Migración aplicada en el intento 1 sobre base nueva, cola y DLQ declaradas, consumidor activo, `GET /api/contacts` → `[]`, nginx `200`. Es el recorrido exacto de quien evalúe: clonar, completar `.env`, levantar. | real | **☑** |
 
 **Comando usado para los casos "inyectado"** (el secreto es el del `.env` de prueba, fuera del
 repositorio). Los casos "real" se ejercitaron escribiendo en Telegram y operando la bandeja en el
