@@ -27,6 +27,14 @@ dist/
 npm-debug.log*
 
 # ---------------------------------------------------------------------------------------------
+# Working material, kept locally and out of the delivered repository
+# ---------------------------------------------------------------------------------------------
+# The challenge statement belongs to EncodeLabs; republishing it is not part of the deliverable.
+chat_inbox_tech_test.md
+# Standing instructions for the AI assistant: scaffolding for the work, not part of the solution.
+CLAUDE.md
+
+# ---------------------------------------------------------------------------------------------
 # Editors and OS
 # ---------------------------------------------------------------------------------------------
 .DS_Store
