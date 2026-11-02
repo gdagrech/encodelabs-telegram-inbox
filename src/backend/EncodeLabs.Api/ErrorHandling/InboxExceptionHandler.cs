@@ -8,9 +8,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace EncodeLabs.Api.ErrorHandling;
 
 /// <summary>
-/// Translates the application's failure modes into problem responses the Angular client can show.
+/// Translates the application's failure modes into problem responses the Angular client can act on.
 /// A failed Telegram delivery in particular must never look like a success.
 /// </summary>
+/// <remarks>
+/// <c>Detail</c> carries the technical reason, not the sentence the operator reads: the client owns
+/// the interface language and composes its own wording from the status code.
+/// </remarks>
 public sealed class InboxExceptionHandler(
     IProblemDetailsService problemDetailsService,
     ILogger<InboxExceptionHandler> logger) : IExceptionHandler
@@ -57,10 +61,17 @@ public sealed class InboxExceptionHandler(
             "Invalid request",
             domainRuleViolationException.Message),
 
-        TelegramReplyFailedException telegramReplyFailedException => (
+        // A rejection and an unreachable API are told apart by status so the client can word them
+        // differently: the first will fail again on retry, the second may not.
+        TelegramReplyFailedException { TelegramDescription: { } telegramDescription } => (
             StatusCodes.Status502BadGateway,
             "The reply was not delivered",
-            telegramReplyFailedException.Message),
+            telegramDescription),
+
+        TelegramReplyFailedException => (
+            StatusCodes.Status504GatewayTimeout,
+            "The reply was not delivered",
+            "The Telegram Bot API could not be reached."),
 
         MessageQueuePublishFailedException => (
             StatusCodes.Status503ServiceUnavailable,

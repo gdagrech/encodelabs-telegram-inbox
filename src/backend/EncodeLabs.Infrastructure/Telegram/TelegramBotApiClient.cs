@@ -40,15 +40,19 @@ public sealed class TelegramBotApiClient(
         }
         catch (ApiRequestException apiRequestException)
         {
-            // Telegram's own description is safe to surface: it never contains the bot token.
+            // Telegram's own description is safe to surface: it never contains the bot token. It is
+            // carried separately from the log message so the client can word the operator-facing
+            // sentence itself instead of echoing English prose into a Spanish interface.
             throw new TelegramReplyFailedException(
                 $"Telegram rejected the reply: {apiRequestException.Message}",
+                apiRequestException.Message,
                 apiRequestException);
         }
         catch (Exception transportException) when (transportException is HttpRequestException or TaskCanceledException)
         {
             throw new TelegramReplyFailedException(
                 "The Telegram Bot API could not be reached. The reply was not delivered.",
+                telegramDescription: null,
                 transportException);
         }
     }

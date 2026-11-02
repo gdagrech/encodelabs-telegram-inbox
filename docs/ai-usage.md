@@ -97,12 +97,18 @@ Lo generado por IA **no se aceptó por inspección visual**. El filtro fue, en o
 
 Marcado como tal, sin adornos:
 
-- ☑ `docker compose up --build`: ejecutado. Los cinco servicios levantan y el pipeline entrante se
-  verificó de punta a punta dentro del stack.
-- ☐ **Prueba con bot y túnel reales:** falta el tramo que necesita credenciales (apertura del
-  túnel, `setWebhook` y envío saliente).
-- ☐ **Inspección visual de la interfaz** en un navegador.
+- ☑ `docker compose up --build`: ejecutado.
+- ☑ **Prueba con bot y túnel reales**, con credenciales del autor: registro automático del webhook,
+  mensajes entrantes, respuesta saliente, caída de RabbitMQ, caída de PostgreSQL y rotación de la
+  URL de ngrok. 15 de los 16 casos de la matriz quedaron cerrados.
+- ☑ **Inspección visual de la interfaz** en el navegador, operada por el autor.
 - ☐ **Revisión humana del código** por el autor antes de publicar el repositorio.
+
+Esa corrida corrigió un juicio previo: CR-010 (mezcla de idiomas en los errores) se había aceptado
+como riesgo sobre el papel, y ver el banner real con un bot bloqueado lo volvió indefendible. Al
+corregirlo apareció CR-016, que ningún análisis estático habría marcado: un rechazo de Telegram y
+una Bot API inalcanzable daban el mismo código de estado, pese a ser accionables al revés. Es el
+mismo patrón que CR-013 — **los defectos que importan aparecieron ejecutando, no leyendo.**
 
 El estado exacto de cada requisito está en `validation-checklist.md`, que distingue entre lo
 ejecutado y lo pendiente. Ningún ítem no ejecutado se reporta como aprobado.
