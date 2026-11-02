@@ -157,6 +157,49 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
   el requisito. Solo afecta a quien quiera correr `npm start` en el host. Quedó anotado en el README.
 - **Estado:** DOCUMENTADO.
 
+### CR-013 — PostgreSQL 18 no arrancaba por el punto de montaje del volumen
+- **Severidad:** CRÍTICA (rompía `docker compose up`)
+- **Dónde:** `docker-compose.yml`, servicio `postgres`
+- **Evidencia:** en la primera corrida real, Compose abortó con
+  `container for service "postgres" is unhealthy`. El log del contenedor explicaba la causa:
+  `in 18+, these Docker images are configured to store database data in a format which is
+  compatible with "pg_ctlcluster" (…) Counter to that, there appears to be PostgreSQL data in:
+  /var/lib/postgresql/data (unused mount/volume)`.
+- **Por qué importa:** era el montaje habitual (`postgres-data:/var/lib/postgresql/data`), correcto
+  hasta PostgreSQL 17 y **rechazado** por la imagen 18, que guarda los datos en un subdirectorio por
+  versión mayor. La solución completa no levantaba. Es exactamente el tipo de defecto que sólo
+  aparece corriendo y no revisando.
+- **Corrección:** el volumen se monta un nivel más arriba, en `/var/lib/postgresql`, con un
+  comentario que explica por qué.
+- **Estado:** CORREGIDO y **verificado**: tras recrear los volúmenes, `postgres` queda `healthy` y
+  la API aplica las migraciones en el primer intento.
+
+### CR-014 — Un token de bot mal formado tiraba un stack trace en vez de un mensaje accionable
+- **Severidad:** MEDIA
+- **Dónde:** `src/backend/EncodeLabs.Infrastructure/Telegram/TelegramBotOptions.cs`
+- **Evidencia:** con un `TELEGRAM_BOT_TOKEN` con formato inválido, la API muere al arrancar con
+  `Unhandled exception. System.ArgumentException: Bot token invalid (Parameter 'token')` y ~25
+  líneas de stack del contenedor de inyección de dependencias.
+- **Por qué importa:** fallar rápido está bien; fallar de forma ilegible no. Quien pega mal el token
+  recibe una traza del SDK en lugar de "revisá esta variable".
+- **Corrección:** el formato del token (`^\d{5,}:[A-Za-z0-9_-]{30,}$`) y el alfabeto del secreto del
+  webhook (`^[A-Za-z0-9_-]{16,256}$`, el que Telegram exige en `setWebhook`) se validan ahora como
+  opciones con `ValidateOnStart`. El mensaje de error nombra la variable y el formato esperado, y
+  **nunca** el valor.
+- **Estado:** CORREGIDO.
+
+### CR-015 — Ruido de logs en el reintento del túnel
+- **Severidad:** BAJA
+- **Dónde:** `src/backend/EncodeLabs.Api/appsettings.json`
+- **Evidencia:** mientras ngrok no está disponible, el logging de `IHttpClientFactory` emitía un
+  stack trace completo de `HttpRequestException` por cada intento, enterrando el mensaje propio de
+  una línea.
+- **Por qué importa:** el escenario de arranque sin túnel es justo el que alguien va a estar
+  diagnosticando; llenarlo de trazas esconde la línea útil.
+- **Corrección:** `System.Net.Http.HttpClient` baja a `Warning`. El log queda en dos líneas legibles
+  por intento (`The ngrok agent API … is not answering yet` + `Attempt N/30 …`).
+- **Estado:** CORREGIDO y verificado en la corrida.
+
 ---
 
 ## Comandos efectivamente ejecutados
@@ -167,23 +210,47 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
 | `dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release` | **OK** — `Total: 25, Errors: 0, Failed: 0, Skipped: 0`. |
 | `dotnet ef migrations add InitialInboxSchema` | **OK** — migración generada e inspeccionada (identidad, `timestamptz`, índice único de deduplicación). |
 | `npx ng build` (producción) | **OK** — 245,55 kB iniciales / 65,43 kB transferidos, sin errores de plantilla ni de tipos. |
-| `docker compose config` | **OK** — configuración válida, interpolación de variables correcta (se usó un `.env` de prueba con valores ficticios, fuera del repo). |
-| `docker compose up --build` | **NO EJECUTADO** — el daemon de Docker no estaba disponible en el entorno de desarrollo (`Cannot connect to the Docker daemon`). |
-| Prueba end-to-end con bot real | **NO EJECUTADO** — requiere credenciales reales en `.env`. |
+| `docker compose config` | **OK** — configuración válida, interpolación correcta. |
+| `docker compose build` | **OK** — ambas imágenes construidas (frontend 61,8 MB). |
+| `docker compose up -d` | **OK** tras corregir CR-013 — los 5 servicios arrancan; `postgres` y `rabbitmq` quedan `healthy`; la API aplica migraciones en el intento 1 y declara la cola y su DLQ. |
+| Pipeline entrante simulando a Telegram | **OK** — ver la tabla de abajo. Se ejecutó con el secreto correcto contra el webhook local, con un `.env` de prueba de valores ficticios guardado **fuera** del repositorio. |
+| Prueba end-to-end con bot y túnel reales | **NO EJECUTADO** — requiere credenciales reales en `.env`. |
+
+### Resultados del pipeline entrante (ejecutado)
+
+| Comprobación | Resultado observado |
+|---|---|
+| `GET /health` | `200` |
+| `GET /api/contacts` con base vacía | `200` + `[]` — **confirma que las sub-consultas correlacionadas de EF traducen a SQL** contra PostgreSQL real (cerraba el riesgo abierto de proyecciones). |
+| `POST` al webhook **sin** el header del secreto | `401`, nada encolado. |
+| `POST` al webhook con mensaje de texto válido | `202` (tras la confirmación del broker) → persistido → visible en `/api/contacts`. |
+| Misma entrega repetida (mismo `message_id`) | `202` ambas veces, **un solo mensaje almacenado**; en el log: `Discarded duplicate delivery of Telegram message 11 (update 100001)`. |
+| Mensaje sin texto (foto) | `200` + `Ignoring Telegram update …: the message has no text content`. |
+| Mensaje de un bot | `200` + `… the message was sent by a bot`. |
+| Mensaje de grupo | `200` + `… does not belong to a private chat`. |
+| Contacto sin nombre ni username | `displayName: "Telegram user 55502"`. |
+| Vista previa, dirección y orden por actividad | Correctos en la respuesta de `/api/contacts`. |
+| `GET /api/contacts/{id}/messages` | Historial en orden, con `sequenceNumber` 1 y 2 y `highestSequenceNumber: 2`. |
+| Marcado como leído con corte en secuencia **1** | `unreadMessageCount: 1` — el mensaje de secuencia 2 **no** se marcó. Es la demostración del requisito 4. |
+| Marcado como leído con corte en secuencia **2** | `unreadMessageCount: 0`. |
+| `POST /hubs/inbox/negotiate` **a través de nginx** | `200` con `WebSockets`, `ServerSentEvents` y `LongPolling` disponibles — valida el proxy de `/hubs`. |
+| `GET /` y `GET /api/contacts` **a través de nginx** (`:4200`) | `200` en ambos — valida el bundle servido y el proxy de `/api` (confirma la corrección CR-004). |
+| Reintento de registro del webhook sin túnel | Dos líneas legibles por intento y cuenta `Attempt N/30`, sin stack traces (CR-015). |
 
 ## Riesgos abiertos
 
-1. **La corrida de Compose no fue verificada.** Es el riesgo principal. La configuración parsea y
-   cada imagen es estándar, pero nada reemplaza a un `docker compose up --build` real. Pendiente de
-   ejecución por parte del autor; el detalle está en `validation-checklist.md`.
-2. **La traducción de las consultas de EF no fue ejecutada contra PostgreSQL.** Las sub-consultas
-   correlacionadas que calculan los no leídos y la vista previa se escribieron para traducir a SQL,
-   pero eso se confirma recién al correrlas contra la base.
-3. **`web_addr: 0.0.0.0:4040` en la configuración de ngrok no fue verificado en vivo.** Es lo que
-   permite que el contenedor de la API consulte al agente; si fallara, el log lo diría explícitamente
-   (`The ngrok agent API ... is not answering yet`) y se corregiría ahí.
-4. **Entrega *at-least-once*, no *exactly-once*.** Es una propiedad del diseño, no un defecto: la
-   deduplicación la absorbe.
+1. **El tramo Telegram ↔ ngrok no fue ejercitado con credenciales reales.** Todo lo que está
+   *dentro* del stack quedó verificado inyectando al webhook las mismas cargas que manda Telegram,
+   pero falta confirmar en vivo: la apertura del túnel, `setWebhook`, `getWebhookInfo` y el envío
+   saliente (`sendMessage`). Es lo único que queda del circuito.
+2. **`web_addr: 0.0.0.0:4040` de ngrok no fue verificado en vivo** (el agente no arranca con un
+   authtoken ficticio). Si fallara, el log lo dice explícitamente: `The ngrok agent API … is not
+   answering yet`.
+3. **La interfaz no fue inspeccionada en un navegador.** El build de producción compila y nginx la
+   sirve (`200`), pero no hay captura ni verificación visual.
+4. **Entrega *at-least-once*, no *exactly-once*.** Propiedad del diseño; la deduplicación la
+   absorbe, y quedó demostrada.
 5. **Entre el commit y la notificación de SignalR no hay atomicidad.** El cliente reconcilia al
    reconectar y al refrescar (ADR-002).
-6. **Los mensajes en la dead-letter queue no se reprocesan solos.** Decisión consciente.
+6. **Los mensajes en la dead-letter queue no se reprocesan solos.** Decisión consciente. La DLQ se
+   declaró correctamente en el arranque, pero no se forzó un mensaje venenoso para verla recibir.

@@ -83,7 +83,13 @@ Lo generado por IA **no se aceptó por inspección visual**. El filtro fue, en o
    columna identidad, `timestamp with time zone` y el índice único de deduplicación. Los SVG de C4
    se renderizaron a PNG y se inspeccionaron visualmente: la primera versión del nivel 2 tenía
    etiquetas superpuestas y se rehízo con rutas ortogonales.
-6. **Paleta tomada del sitio real.** En vez de inventar "colores tipo EncodeLabs", se descargó el CSS
+6. **Levantar el stack y ejercitarlo, no sólo compilarlo.** Es lo que más defectos encontró. El
+   primer `docker compose up` falló con `container for service "postgres" is unhealthy`: la imagen
+   de PostgreSQL 18 cambió el punto de montaje del directorio de datos (CR-013). Ningún análisis
+   estático lo habría detectado. Con el stack arriba se le inyectaron al webhook las mismas cargas
+   JSON que manda Telegram, lo que permitió verificar de verdad la deduplicación, el filtrado de
+   updates fuera de alcance y —lo más importante— el corte del marcado como leído.
+7. **Paleta tomada del sitio real.** En vez de inventar "colores tipo EncodeLabs", se descargó el CSS
    de encodelabs.com.ar y se extrajeron los tokens que usa (rampa teal en `oklch`, grises neutros,
    Red Hat Display). La bandeja está inspirada en esa identidad, no es una copia del sitio.
 
@@ -91,7 +97,11 @@ Lo generado por IA **no se aceptó por inspección visual**. El filtro fue, en o
 
 Marcado como tal, sin adornos:
 
-- ☐ **Corrida real de `docker compose up --build`** y prueba end-to-end con un bot real.
+- ☑ `docker compose up --build`: ejecutado. Los cinco servicios levantan y el pipeline entrante se
+  verificó de punta a punta dentro del stack.
+- ☐ **Prueba con bot y túnel reales:** falta el tramo que necesita credenciales (apertura del
+  túnel, `setWebhook` y envío saliente).
+- ☐ **Inspección visual de la interfaz** en un navegador.
 - ☐ **Revisión humana del código** por el autor antes de publicar el repositorio.
 
 El estado exacto de cada requisito está en `validation-checklist.md`, que distingue entre lo
