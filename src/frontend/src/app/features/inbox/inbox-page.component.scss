@@ -1,14 +1,20 @@
-/* The host sits between app-root and the shell. Without an explicit height here the chain breaks:
-   the shell's `height: 100%` resolves against an element that has no height of its own, so it grows
-   with its content and the whole document scrolls instead of the message list. */
+/* El alto arranca acá y no en una cadena de porcentajes. Un `height: 100%` sólo resuelve si todos
+   los ancestros —html, body, app-root— tienen alto propio; si uno falla, el shell toma el alto del
+   contenido y con pocos mensajes el compositor queda flotando a media pantalla en vez de apoyado
+   en el pie. `100dvh` fija el alto del viewport acá mismo y el resto del layout cuelga de este
+   valor: la lista de contactos llega hasta abajo y el compositor se queda en el pie. */
 :host {
   display: block;
-  height: 100%;
+  height: 100dvh;
 }
 
+/* Columna flexible, no grilla de filas fijas: el banner de error es condicional, así que un
+   `grid-template-rows: auto auto 1fr` le asigna la fila equivocada a las columnas cuando no hay
+   error —quedan con el alto del contenido y el `1fr` sobra vacío al pie—. Con flex el encabezado y
+   el banner ocupan lo suyo y las columnas se quedan con todo el resto, haya banner o no. */
 .inbox-shell {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   /* Desktop-only by requirement: a minimum width keeps the two columns usable. */
   min-width: 960px;
@@ -134,6 +140,9 @@
 .inbox-columns {
   display: grid;
   grid-template-columns: 340px 1fr;
+  /* Se queda con el alto que sobra, sin restar a mano la altura del encabezado. */
+  flex: 1;
+  grid-template-rows: 1fr;
   min-height: 0;
   /* Confines any overflow to the columns, which scroll internally. */
   overflow: hidden;
