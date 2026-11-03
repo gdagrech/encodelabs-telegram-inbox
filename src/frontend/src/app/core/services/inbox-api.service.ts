@@ -63,6 +63,10 @@ export function describeRequestFailure(requestFailure: unknown, fallbackMessage:
   const problemDetails = requestFailure.error as { detail?: string } | null;
   const technicalReason = problemDetails?.detail;
 
+  if (isReplyDeliveredButNotRecorded(requestFailure)) {
+    return 'La respuesta se entregó en Telegram pero no se pudo guardar. No la reenvíes: le llegaría dos veces. Actualizá la bandeja.';
+  }
+
   switch (requestFailure.status) {
     case 400:
       // The only rejected input is the reply text, so the rule is worth stating outright.
@@ -82,4 +86,21 @@ export function describeRequestFailure(requestFailure: unknown, fallbackMessage:
     default:
       return fallbackMessage;
   }
+}
+
+/** Identifies the response the API marks when Telegram delivered a reply the inbox could not store. */
+const REPLY_DELIVERED_BUT_NOT_RECORDED_PROBLEM_TYPE =
+  'https://encodelabs.inbox/problems/reply-delivered-but-not-recorded';
+
+/**
+ * Whether the contact already received the reply despite the error. The status code cannot answer
+ * this —it is a plain 500— so the API marks the response and the client matches on that mark.
+ */
+export function isReplyDeliveredButNotRecorded(requestFailure: unknown): boolean {
+  if (!(requestFailure instanceof HttpErrorResponse)) {
+    return false;
+  }
+
+  const problemDetails = requestFailure.error as { type?: string } | null;
+  return problemDetails?.type === REPLY_DELIVERED_BUT_NOT_RECORDED_PROBLEM_TYPE;
 }

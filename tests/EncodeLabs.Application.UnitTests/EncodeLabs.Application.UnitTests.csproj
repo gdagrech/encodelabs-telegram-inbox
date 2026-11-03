@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      Same self-hosting runner as the domain tests: run with "dotnet run", not "dotnet test".
+      See docs/code-review.md (CR-002).
+    -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
+    <!-- Only for NullLogger. Pinned to the version Application already resolves, not a lower one. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\backend\EncodeLabs.Application\EncodeLabs.Application.csproj" />
+  </ItemGroup>
+
+</Project>

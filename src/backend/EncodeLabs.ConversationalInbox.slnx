@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../../tests/EncodeLabs.Application.UnitTests/EncodeLabs.Application.UnitTests.csproj" />
   <Project Path="../../tests/EncodeLabs.Domain.UnitTests/EncodeLabs.Domain.UnitTests.csproj" />
   <Project Path="EncodeLabs.Api/EncodeLabs.Api.csproj" />
   <Project Path="EncodeLabs.Application/EncodeLabs.Application.csproj" />

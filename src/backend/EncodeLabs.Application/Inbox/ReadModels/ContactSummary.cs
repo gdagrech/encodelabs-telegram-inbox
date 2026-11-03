@@ -20,8 +20,22 @@ public sealed record ContactSummary(
     /// </summary>
     public const int MaximumPreviewLength = 160;
 
-    public static string BuildPreview(string messageText) =>
-        messageText.Length <= MaximumPreviewLength
-            ? messageText
-            : string.Concat(messageText.AsSpan(0, MaximumPreviewLength), "…");
+    /// <remarks>
+    /// The cut is pulled back by one when it would land between the two halves of a surrogate pair.
+    /// An emoji occupies two <see cref="char"/> values, and splitting it renders as the replacement
+    /// character — a preview ending in "�" looks like a storage bug to the operator.
+    /// </remarks>
+    public static string BuildPreview(string messageText)
+    {
+        if (messageText.Length <= MaximumPreviewLength)
+        {
+            return messageText;
+        }
+
+        int cutLength = char.IsHighSurrogate(messageText[MaximumPreviewLength - 1])
+            ? MaximumPreviewLength - 1
+            : MaximumPreviewLength;
+
+        return string.Concat(messageText.AsSpan(0, cutLength), "…");
+    }
 }

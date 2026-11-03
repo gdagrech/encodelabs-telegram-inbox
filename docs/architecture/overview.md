@@ -203,7 +203,8 @@ Cada fila fue **ejercitada**, no razonada. La evidencia completa está en
 |---|---|---|---|
 | RabbitMQ caído | La bandeja sigue respondiendo | El webhook devuelve `503`; Telegram reintenta la misma entrega | Automática al volver el broker. Verificado: 7 × `503` con el mismo `update_id`, luego `202` |
 | PostgreSQL caído | Errores en la bandeja | 3 reintentos y el mensaje va a la cola de descarte con el payload íntegro | **Manual.** Ver riesgo abierto abajo |
-| API reiniciada | "Reconectando…" y vuelve a "En línea" | Nada se pierde: los mensajes esperan en la cola | Automática, con refetch al reconectar |
+| API reiniciada | "Reconectando…" y vuelve a "En línea" | Nada se pierde: los encolados esperan, y el que estaba **en vuelo** queda sin confirmar, así que RabbitMQ lo reencola | Automática, con refetch al reconectar |
+| PostgreSQL caído al responder, con Telegram ya entregado | "La respuesta se entregó pero no se pudo guardar. No la reenvíes" y el campo se limpia | El contacto tiene el mensaje; la bandeja no | Refrescar. **No reintentar**: duplicaría |
 | URL de ngrok nueva | Transparente | — | Automática: la API descubre la URL y re-registra el webhook |
 | Bot bloqueado por el usuario | `Telegram rechazó la respuesta: Forbidden…` | No se escribe fila | Requiere acción del contacto |
 | Bot API inalcanzable | "No se pudo contactar a Telegram" | No se escribe fila | Reintentar sirve (`504`, distinto de `502`) |
@@ -235,21 +236,33 @@ Decisiones propias:
 
 ### Estrategia de tests
 
-El enunciado los pide opcionales y, si se incluyen, unitarios sobre el dominio. Hay **25 tests**
-(`tests/EncodeLabs.Domain.UnitTests`, xUnit v3) concentrados donde el dominio **decide**: un entrante
-nace no leído y un saliente nace leído, `MarkAsRead` es idempotente y se rechaza sobre un saliente,
-el límite de 4096 caracteres de Telegram en sus dos bordes, los cuatro niveles de respaldo de
-`DisplayName`, y que `RegisterActivity` ignore un timestamp más viejo para que una entrega fuera de
-orden no reordene la bandeja. Corren sin base ni broker porque el dominio no los conoce: eso es el
-desacople de la sección 2 siendo útil, no sólo prolijo.
+El enunciado los pide opcionales y, si se incluyen, unitarios sobre el dominio. Son **38 en total**,
+xUnit v3, repartidos en dos proyectos según qué protegen.
+
+**25 tests de dominio** (`tests/EncodeLabs.Domain.UnitTests`) concentrados donde el dominio
+**decide**: un entrante nace no leído y un saliente nace leído, `MarkAsRead` es idempotente y se
+rechaza sobre un saliente, el límite de 4096 caracteres de Telegram en sus dos bordes, los cuatro
+niveles de respaldo de `DisplayName`, y que `RegisterActivity` ignore un timestamp más viejo para que
+una entrega fuera de orden no reordene la bandeja. Corren sin base ni broker porque el dominio no los
+conoce: eso es el desacople de la sección 2 siendo útil, no sólo prolijo.
+
+**13 tests de casos de uso** (`tests/EncodeLabs.Application.UnitTests`) con dobles escritos a mano
+—sin librería de *mocking*— sobre los puertos de la sección 2. Existen porque hay comportamiento que
+**ninguna corrida real puede ejercitar razonablemente**: verificar que varios contactos no se cruzan
+exige varias cuentas de Telegram. El caso que más importa es que Telegram numera los mensajes *por
+chat*, así que dos personas distintas producen el mismo `message_id` de forma rutinaria; si la
+deduplicación no estuviera acotada al contacto, el mensaje del segundo se descartaría en silencio.
+También cubren que una respuesta que Telegram entregó pero la base rechazó se reporte como entregada
+y no como fallida, y que nada se anuncie por SignalR cuando el commit falla.
 
 **No hay tests de integración, y es deliberado.** Las garantías más importantes del sistema no viven
 en código propio sino en la infraestructura: la deduplicación la garantiza un índice único de
-PostgreSQL, la no-pérdida la garantizan los *publisher confirms* y el ACK manual de RabbitMQ. Un test
-con un proveedor en memoria no ejercita ninguna de las dos —probaría el doble, no la garantía— y
-dejaría una luz verde que no significa nada. Esas propiedades se verificaron **contra la
-infraestructura real**, apagando el broker y la base con mensajes en vuelo; la evidencia está en
-[validation-checklist.md](../validation-checklist.md).
+PostgreSQL, la no-pérdida la garantizan los *publisher confirms* y el ACK manual de RabbitMQ. Un
+doble en memoria no ejercita ninguna de las dos —probaría el doble, no la garantía— y dejaría una luz
+verde que no significa nada. Por eso los dobles de arriba **no reimplementan** el índice único: lo
+que prueban es a quién le atribuye el handler cada mensaje, no que la base rechace duplicados. Esa
+propiedad se verificó **contra PostgreSQL real**, apagando el broker y la base con mensajes en vuelo;
+la evidencia está en [validation-checklist.md](../validation-checklist.md).
 
 Una nota de herramientas: los tests se corren con `dotnet run --project`, no con `dotnet test`. Son
 ejecutables auto-hospedados sobre Microsoft.Testing.Platform y el runner de `dotnet test` falla en

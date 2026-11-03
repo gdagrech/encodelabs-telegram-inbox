@@ -58,8 +58,9 @@ Lo generado **no se aceptó por inspección visual**. El filtro, en orden de ren
    superficies de RabbitMQ.Client 7, Telegram.Bot 22 y EF Core 10 cambiaron; compilar Infrastructure
    temprano y aislada hizo aparecer tres métodos inventados.
 4. **Verificar versiones contra el registro real** (`api.nuget.org`, `npm view`), no asumirlas.
-5. **Tests de dominio** sobre las ramas que un modelo tiende a simplificar: contacto sin nombre ni
-   username, `MarkAsRead` repetido, marcado sobre un saliente. 25 tests, 0 fallos.
+5. **Tests sobre las ramas que un modelo tiende a simplificar**: contacto sin nombre ni username,
+   `MarkAsRead` repetido, marcado sobre un saliente, y el aislamiento entre contactos cuando dos
+   remitentes traen el mismo `message_id`. 38 tests, 0 fallos.
 6. **Mirar los artefactos**: la migración se leyó línea por línea; los SVG de C4 se renderizaron y
    el nivel 2 se rehízo porque tenía etiquetas superpuestas.
 7. **Paleta tomada del sitio real**: se extrajeron los tokens del CSS de encodelabs.com.ar en vez de
@@ -68,7 +69,10 @@ Lo generado **no se aceptó por inspección visual**. El filtro, en orden de ren
 ## 5. Estado de la validación humana
 
 - ☑ Prueba con **bot y túnel reales**, con credenciales del autor, operando la interfaz en el
-  navegador. Los 19 casos de la matriz quedaron cerrados.
+  navegador. Los 21 casos de la matriz quedaron cerrados.
+- ☑ **Segunda revisión completa de `src/`** ya con el sistema funcionando: seis defectos más (CR-018
+  a CR-023). Tres sólo aparecen con varios contactos o con una falla a mitad de camino, que una
+  corrida feliz nunca expone. Verificar de punta a punta no reemplaza revisar.
 - ☐ **Revisión humana del código** por el autor antes de publicar el repositorio.
 
 Esa corrida destapó tres defectos en cadena. CR-010 (mezcla de idiomas en los errores) se había

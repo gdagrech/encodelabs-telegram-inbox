@@ -8,6 +8,11 @@
 
   @if (!hasLoaded() && isLoading()) {
     <p class="contact-list__placeholder" role="status">Cargando contactos…</p>
+  } @else if (!hasLoaded()) {
+    <div class="contact-list__placeholder">
+      <p class="contact-list__placeholder-title">No se pudo cargar el listado</p>
+      <p>El detalle está en el aviso de arriba. Puede haber conversaciones sin mostrar.</p>
+    </div>
   } @else if (contacts().length === 0) {
     <div class="contact-list__placeholder">
       <p class="contact-list__placeholder-title">Todavía no hay conversaciones</p>

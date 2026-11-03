@@ -2,8 +2,9 @@
 
 **Alcance:** revisión propia (asistida por Claude Code) sobre todo el código de `src/` y la
 configuración de Compose, previa a la entrega.
-**Fecha:** 2026-11-02, con una segunda pasada el 2026-11-03 contra el stack corriendo (reproceso de
-la dead-letter queue y reintento de migraciones).
+**Fecha:** 2026-11-02, con una segunda pasada completa el 2026-11-03 —ya con el sistema verificado de
+punta a punta— que produjo CR-018 a CR-023 y las verificaciones del reproceso de la dead-letter queue
+y del reintento de migraciones.
 **Revisor humano:** ☐ pendiente — este documento registra únicamente la revisión automatizada y los
 comandos realmente ejecutados. No se reporta ninguna revisión humana que no haya ocurrido.
 
@@ -18,7 +19,8 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
 | Arranque y resiliencia | **CR-003** (alto). |
 | Enrutamiento HTTP | **CR-004**. |
 | Sincronización de estado en el cliente | **CR-005**, **CR-006**. |
-| Ciclo de vida del consumidor | **CR-007**. |
+| Ciclo de vida del consumidor | **CR-007**; en la segunda pasada, **CR-018** (alto): el apagado descartaba el mensaje en vuelo. |
+| Aislamiento entre contactos | **CR-019** (alto): el borrador de respuesta se cruzaba de conversación. Cubierto ahora por tests de varios remitentes. |
 | Contratos de serialización | **CR-008**. |
 | Dependencias de terceros | **CR-001** (alto). |
 | Secretos en repo/logs | Sin hallazgos. `.env` ignorado; ningún log imprime token ni secreto. |
@@ -252,19 +254,112 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
   cosmética destapó un defecto de comportamiento.**
 - **Estado:** CORREGIDO y verificado reproduciendo el escenario.
 
+---
+
+> Los seis hallazgos siguientes salieron de una **segunda revisión completa de `src/`** el 2026-11-03,
+> ya con el sistema verificado de punta a punta. Ninguno se había visto en la primera pasada: tres de
+> ellos sólo se manifiestan con más de un contacto o con una falla a mitad de camino, que es
+> exactamente lo que una corrida feliz no ejercita.
+
+### CR-018 — Reiniciar la API descartaba el mensaje que estaba procesando
+- **Severidad:** ALTA
+- **Dónde:** `src/backend/EncodeLabs.Infrastructure/Messaging/RabbitMq/IncomingTelegramMessageConsumerService.cs`
+- **Evidencia:** el `catch` de cancelación comentaba *"leave the delivery unacknowledged so it is
+  redelivered"* y devolvía `false`; el llamador trataba `false` como veneno y hacía
+  `BasicNackAsync(requeue: false)`. **El comentario declaraba una intención y el código hacía la
+  contraria.**
+- **Por qué importa:** un `docker compose restart api` con un mensaje en vuelo lo mandaba a la DLQ
+  para siempre. Telegram no lo reintenta porque ya había respondido `202`. Y el propio README
+  recomienda ese `restart api` en Troubleshooting, así que el defecto se disparaba siguiendo nuestras
+  instrucciones.
+- **Causa de fondo:** un booleano no alcanzaba para tres situaciones distintas. "No confirmes" y
+  "rechazá" son decisiones opuestas y estaban colapsadas en el mismo `false`.
+- **Corrección:** un enum `DeliveryDisposition` con `Acknowledge`, `DeadLetter` y
+  `LeaveUnacknowledged`. El apagado devuelve el tercero y el handler no hace *nada*: sin ack ni nack,
+  RabbitMQ reencola al cerrarse el canal.
+- **Estado:** CORREGIDO y **verificado en vivo** (E-20): con la base detenida y un mensaje
+  reintentándose, `docker compose restart api` dejó
+  `Shutting down while processing Telegram update 999000001; leaving the delivery unconfirmed so
+  RabbitMQ redelivers it.`, la cola principal en **1** y la DLQ en **0**.
+
+### CR-019 — El borrador de respuesta se cruzaba de contacto
+- **Severidad:** ALTA
+- **Dónde:** `src/frontend/src/app/features/inbox/message-composer.component.ts`
+- **Evidencia:** `replyText` era un `signal('')` que nunca se limpiaba al cambiar de conversación, y
+  el componente **no se recrea**: vive dentro de la misma rama `@else` de
+  `conversation-panel.component.html`, así que Angular reutiliza la instancia.
+- **Por qué importa:** escribir una respuesta para Ana, cambiar a Bruno y presionar Enter **le manda
+  a Bruno el texto escrito para Ana**. En una bandeja de mensajería, entregarle un mensaje a la
+  persona equivocada es el peor defecto posible, y es irreversible: el enunciado excluye editar y
+  borrar.
+- **Por qué no se había visto:** la verificación de punta a punta se hizo con **un solo contacto**.
+  Ninguna corrida feliz lo expone.
+- **Corrección:** `linkedSignal` atado al contacto seleccionado, de modo que el borrador se descarta
+  cuando cambia la conversación.
+- **Estado:** CORREGIDO. Cubierto además por los tests de varios remitentes.
+
+### CR-020 — Una respuesta entregada podía reportarse como fallida
+- **Severidad:** ALTA
+- **Dónde:** `src/backend/EncodeLabs.Application/Inbox/UseCases/SendOperatorReplyHandler.cs`
+- **Evidencia:** el envío a Telegram ocurre antes de `SaveChangesAsync`. Si la base fallaba después
+  del envío, la excepción caía en el `_ =>` del manejador y salía un `500` genérico; la interfaz
+  mostraba "No se pudo enviar" y **dejaba el texto para reintentar**.
+- **Por qué importa:** el contacto **ya había recibido** el mensaje. El operador reintentaba de buena
+  fe y le llegaba duplicado. La interfaz inducía exactamente la acción incorrecta.
+- **Corrección:** `ReplyDeliveredButNotRecordedException`, mapeada a un `ProblemDetails` con un
+  `type` estable —el código de estado no alcanza, es un `500` como cualquier otro—. El cliente lo
+  reconoce, **limpia el campo** para que nadie reenvíe y explica que la respuesta sí llegó.
+- **Estado:** CORREGIDO. Cubierto por
+  `AReplyTelegramDeliveredButTheDatabaseRejected_IsReportedAsDeliveredNotFailed`.
+
+### CR-021 — Un cuerpo malformado devolvía 500 y se logueaba como error
+- **Severidad:** MEDIA
+- **Dónde:** `src/backend/EncodeLabs.Api/ErrorHandling/InboxExceptionHandler.cs`
+- **Evidencia:** `BadHttpRequestException` no tenía caso propio y caía en el `_ =>`.
+- **Por qué importa:** un cuerpo ilegible es culpa del cliente, no del servidor. Además, en el
+  webhook público esto ocurre **antes** de validar el secreto, así que cualquiera puede llenar el log
+  de errores mandando basura.
+- **Corrección:** caso explícito que devuelve `400`, que además lo baja a nivel informativo.
+- **Estado:** CORREGIDO.
+
+### CR-022 — El estado vacío tranquilizaba cuando en realidad había fallado la carga
+- **Severidad:** MEDIA
+- **Dónde:** `contact-list.component.html`, `conversation-panel.component.html`
+- **Evidencia:** si `GET /api/contacts` fallaba, el panel mostraba `Todavía no hay conversaciones`
+  —con su sugerencia amable de escribirle al bot— debajo del banner rojo que decía que algo había
+  fallado. Mismo caso en el historial.
+- **Por qué importa:** es la **misma clase de contradicción que CR-017**, que creíamos cerrada:
+  la pantalla afirma dos cosas incompatibles y el operador no sabe cuál creer. Peor aún, el estado
+  vacío es el más tranquilizador de todos.
+- **Corrección:** `hasLoadedConversation` en el store junto al `hasLoadedContacts` que ya existía, y
+  una rama explícita de "no se pudo cargar" en ambas plantillas.
+- **Estado:** CORREGIDO.
+
+### CR-023 — La vista previa podía cortar un emoji al medio
+- **Severidad:** BAJA
+- **Dónde:** `src/backend/EncodeLabs.Application/Inbox/ReadModels/ContactSummary.cs`
+- **Evidencia:** `AsSpan(0, 160)` corta por unidades `char`. Un emoji ocupa dos, así que un mensaje
+  largo con un emoji sobre el límite dejaba un sustituto huérfano, que se dibuja como `�`.
+- **Por qué importa:** en el listado de contactos, un `�` se lee como dato corrupto en la base, no
+  como un texto recortado.
+- **Corrección:** el corte retrocede una posición cuando caería entre las dos mitades de un par
+  suplente.
+- **Estado:** CORREGIDO. Cubierto por `AnEmojiStraddlingTheCutIsDroppedRatherThanSplit`.
+
 ## Comandos efectivamente ejecutados
 
 | Comando | Resultado |
 |---|---|
 | `dotnet build` (solución completa, `src/backend`) | **OK** — `Build succeeded.` sin advertencias, con `TreatWarningsAsErrors`. |
 | `dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release` | **OK** — `Total: 25, Errors: 0, Failed: 0, Skipped: 0`. |
+| `dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release` | **OK** — `Total: 13, Errors: 0, Failed: 0, Skipped: 0`. Varios remitentes, respuestas del operador y recorte de vistas previas. |
 | `dotnet ef migrations add InitialInboxSchema` | **OK** — migración generada e inspeccionada (identidad, `timestamptz`, índice único de deduplicación). |
 | `npx ng build` (producción) | **OK** — 245,55 kB iniciales / 65,43 kB transferidos, sin errores de plantilla ni de tipos. |
 | `docker compose config` | **OK** — configuración válida, interpolación correcta. |
 | `docker compose build` | **OK** — ambas imágenes construidas (frontend 61,8 MB). |
 | `docker compose up -d` | **OK** tras corregir CR-013 — los 5 servicios arrancan; `postgres` y `rabbitmq` quedan `healthy`; la API aplica migraciones en el intento 1 y declara la cola y su DLQ. |
 | Pipeline entrante simulando a Telegram | **OK** — ver la tabla de abajo. Se ejecutó con el secreto correcto contra el webhook local, con un `.env` de prueba de valores ficticios guardado **fuera** del repositorio. |
-| Prueba end-to-end con bot y túnel reales | **NO EJECUTADO** — requiere credenciales reales en `.env`. |
+| Prueba end-to-end con bot y túnel reales | **OK** — ejecutada con un bot propio y ngrok. Resultados en la tabla "Resultados con bot y túnel reales". |
 
 ### Resultados del pipeline entrante (ejecutado)
 

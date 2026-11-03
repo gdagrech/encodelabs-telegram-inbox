@@ -29,6 +29,7 @@ export class InboxPageComponent implements OnInit {
   protected readonly isLoadingContacts = this.inboxStore.isLoadingContacts;
   protected readonly isLoadingConversation = this.inboxStore.isLoadingConversation;
   protected readonly hasLoadedContacts = this.inboxStore.hasLoadedContacts;
+  protected readonly hasLoadedConversation = this.inboxStore.hasLoadedConversation;
   protected readonly errorMessage = this.inboxStore.errorMessage;
   protected readonly totalUnreadMessageCount = this.inboxStore.totalUnreadMessageCount;
 

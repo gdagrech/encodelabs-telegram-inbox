@@ -68,7 +68,7 @@ Estado real de cada requisito, con la evidencia que lo respalda. Se distingue ex
 | Documento de trabajo con IA, máx. 1 página | **PASS** | `docs/ai-usage.md`. |
 | Preguntas bonus | **PASS** | Sección 5 de este documento. |
 | `.env` fuera del repositorio | **PASS** | `.gitignore` incluye `.env` y `.env.*` con excepción para `.env.example`. No existe ningún `.env` en el árbol. |
-| Tests unitarios sobre el dominio (opcional) | **PASS** | 25 tests, 0 fallos: `dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release`. El alcance elegido —dominio sí, integración no— se justifica en *Estrategia de tests* de [architecture/overview.md](architecture/overview.md). |
+| Tests unitarios sobre el dominio (opcional) | **PASS** | **38 tests, 0 fallos**: 25 de dominio (`tests/EncodeLabs.Domain.UnitTests`) y 13 de casos de uso con dobles en memoria (`tests/EncodeLabs.Application.UnitTests`), estos últimos para el aislamiento entre contactos, que no se puede reproducir con una sola cuenta de Telegram. El alcance elegido se justifica en *Estrategia de tests* de [architecture/overview.md](architecture/overview.md). |
 
 ---
 
@@ -99,6 +99,8 @@ inyectando cargas al webhook (**inyectado**) o con el bot, el túnel y el navega
 | E-17 | Contacto abierto que desaparece | Con una conversación abierta y el navegador sin tocar, `down --volumes` + `up`: la bandeja vuelve sola a los estados vacíos, el indicador regresa a "En línea" y **no** aparece ningún banner de error. Regresión de CR-017. | real | **☑** |
 | E-18 | Arranque en frío desde cero | `down --volumes` + `up --build`: **21 segundos** hasta `Telegram webhook registered`. Migración aplicada en el intento 1 sobre base nueva, cola y DLQ declaradas, consumidor activo, `GET /api/contacts` → `[]`, nginx `200`. Es el recorrido exacto de quien evalúe: clonar, completar `.env`, levantar. | real | **☑** |
 | E-19 | Reproceso de la dead-letter queue | Con la base caída, un mensaje real (`"prueba de reproceso"`, `telegramMessageId 13`) agotó `Attempt 1/3`…`3/3` y fue a la DLQ. Leído con `ack_requeue_true`: payload íntegro, `x-death: rejected`, y **el mensaje quedó en la cola**. Republicado en `encodelabs.inbox.telegram` con routing key `telegram.incoming-message`: persistido como `SequenceNumber 4` y **apareció en la bandeja sin refrescar**. Republicado una segunda vez: `Discarded duplicate delivery of Telegram message 13`, sin fila nueva. DLQ vaciada con `ack_requeue_false`. | real | **☑** |
+| E-20 | Reinicio con un mensaje en vuelo | Con la base detenida y un mensaje reintentándose, `docker compose restart api`: el log dejó `Shutting down while processing Telegram update 999000001; leaving the delivery unconfirmed so RabbitMQ redelivers it.`, la cola principal quedó en **1** y la **DLQ en 0**. Antes de CR-018 el mensaje se habría descartado. | real | **☑** |
+| E-21 | Varios remitentes no se cruzan | 13 tests de aplicación con dobles en memoria: tres remitentes distintos producen tres contactos con sus propios mensajes; el mismo `telegramMessageId` desde **dos remitentes distintos** se guarda dos veces (Telegram numera por chat), y desde el **mismo** remitente se descarta como duplicado. | inyectado | **☑** |
 
 **Comando usado para los casos "inyectado"** (el secreto es el del `.env` de prueba, fuera del
 repositorio). Los casos "real" se ejercitaron escribiendo en Telegram y operando la bandeja en el

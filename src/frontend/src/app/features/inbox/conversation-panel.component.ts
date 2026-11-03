@@ -22,6 +22,7 @@ export class ConversationPanelComponent {
   readonly contact = input.required<ContactSummary | null>();
   readonly messages = input.required<readonly MessageView[]>();
   readonly isLoading = input.required<boolean>();
+  readonly hasLoaded = input.required<boolean>();
 
   private readonly messageScrollContainer =
     viewChild<ElementRef<HTMLDivElement>>('messageScrollContainer');

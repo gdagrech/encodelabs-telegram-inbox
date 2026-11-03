@@ -51,8 +51,9 @@ Respondé desde la bandeja y el mensaje llega al chat.
 
 **Minutos 8 a 10 — que sea honesto.** [docs/validation-checklist.md](docs/validation-checklist.md)
 traza cada requisito a la evidencia que lo respalda, y
-[docs/code-review.md](docs/code-review.md) registra 17 hallazgos propios, incluido **un juicio que
-se revirtió al verlo en ejecución** (CR-010) y el defecto que esa corrección destapó (CR-017).
+[docs/code-review.md](docs/code-review.md) registra 23 hallazgos propios, incluido **un juicio que
+se revirtió al verlo en ejecución** (CR-010), el defecto que esa corrección destapó (CR-017) y un
+comentario que declaraba lo contrario de lo que hacía el código (CR-018).
 
 **Si querés romperlo:** `docker compose stop rabbitmq` y escribile al bot. El webhook devuelve `503`,
 Telegram reintenta y el mensaje entra solo cuando levantás el broker. Nada se pierde.
@@ -243,6 +244,9 @@ select "SequenceNumber", "Direction", "Text", "ReadAtUtc" from messages order by
 | **PostgreSQL caído durante el consumo** | Hasta 3 intentos con back-off; el delivery no se confirma, así que el mensaje no se pierde. Agotados los intentos va a la dead-letter queue. |
 | **Mensaje imposible de procesar** (JSON ilegible, invariante violada) | Va directo a la DLQ, sin reintentos, para no bloquear la cola. Queda visible en http://localhost:15672. |
 | **Telegram rechaza un envío** | No se guarda nada y la bandeja muestra el error que devolvió Telegram. Nunca aparece un mensaje "enviado" que no se entregó. |
+| **Telegram entrega la respuesta pero falla al guardarla** | La bandeja avisa que **sí se entregó** y limpia el campo, para que nadie la reenvíe: el contacto ya la tiene y reintentar se la duplicaría. Es la única falla que no se debe reintentar. |
+| **Se reinicia la API con un mensaje a medio procesar** | El delivery queda sin confirmar y RabbitMQ lo reencola. No se descarta: apagarse no es un juicio sobre el mensaje. |
+| **Se cambia de conversación con una respuesta a medio escribir** | El borrador se descarta. Arrastrarlo al siguiente contacto podría entregarle el texto a la persona equivocada. |
 | **Se cae el canal SignalR** | El indicador pasa a "Reconectando…". Al reconectar, el cliente vuelve a pedir contactos e historial, así que no quedan huecos. |
 | **Llega un mensaje mientras se marca como leído** | Queda sin leer. El marcado usa un corte por número de secuencia: solo afecta a lo que el cliente ya había recibido. |
 | **Mensaje multimedia, edición, sticker, grupo o bot** | Se ignora con `200` (para que Telegram no reintente) y se registra el motivo en el log. Está fuera de alcance. |
@@ -315,7 +319,7 @@ src/backend/
   EncodeLabs.Infrastructure/  EF Core + PostgreSQL, RabbitMQ, Bot API de Telegram, agente ngrok.
   EncodeLabs.Api/             Endpoints HTTP, webhook, hub SignalR, composición, arranque.
 src/frontend/                 Angular 22 + nginx.
-tests/                        Tests unitarios de dominio (xUnit v3).
+tests/                        Tests unitarios de dominio y de casos de uso (xUnit v3).
 docs/                         Diagramas, ADRs, validación y revisión.
 docker/                       Configuración del agente de ngrok.
 ```
@@ -340,9 +344,10 @@ cd src/backend
 dotnet build
 dotnet run --project EncodeLabs.Api     # necesita las variables de entorno de configuración
 
-# Tests unitarios de dominio
+# Tests (desde la raíz del repo, no desde src/backend)
 cd /ruta/al/repo
-dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release
+dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release       # 25 tests
+dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release  # 13 tests
 
 # Frontend (requiere Node >= 24.15)
 cd src/frontend
@@ -350,11 +355,15 @@ npm install
 npm start      # http://localhost:4200, proxea /api y /hubs a http://localhost:8080
 ```
 
-Los **25 tests** son unitarios de dominio, como pide el enunciado, y cubren las reglas donde el
-dominio decide: estado de leído, el límite de 4096 de Telegram, el respaldo de `DisplayName` y el
-orden de la bandeja ante entregas desordenadas. No hay tests de integración a propósito: la
-deduplicación y la no-pérdida las garantizan un índice único y los *publisher confirms*, que un doble
-en memoria no ejercitaría. El razonamiento completo está en
+Son **38 tests** en dos proyectos. Los 25 de dominio cubren las reglas donde el dominio decide:
+estado de leído, el límite de 4096 de Telegram, el respaldo de `DisplayName` y el orden de la bandeja
+ante entregas desordenadas. Los 13 de casos de uso, con dobles en memoria, cubren lo que **ninguna
+corrida real puede ejercitar**: que varios contactos no se crucen. Telegram numera los mensajes por
+chat, así que dos personas producen el mismo `message_id` de forma rutinaria, y comprobarlo en vivo
+exigiría varias cuentas.
+
+No hay tests de integración a propósito: la deduplicación y la no-pérdida las garantizan un índice
+único y los *publisher confirms*, que un doble no ejercitaría. El razonamiento completo está en
 [docs/architecture/overview.md](docs/architecture/overview.md) → *Estrategia de tests*.
 
 > Se corren con `dotnet run` y no con `dotnet test`: son ejecutables auto-hospedados y el runner de

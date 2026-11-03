@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal } from '@angular/core';
 import { InboxStore } from '../../core/services/inbox-store';
 
 /**
@@ -16,7 +16,17 @@ export class MessageComposerComponent {
 
   readonly contactDisplayName = input.required<string>();
 
-  protected readonly replyText = signal('');
+  /**
+   * The draft, tied to the contact it was written for. This component is not re-created when the
+   * operator switches conversations —it lives inside the same template branch— so a plain signal
+   * would carry one contact's unsent text into the next contact's box and deliver it to the wrong
+   * person. Keying it to the selected contact discards the draft when the conversation changes.
+   */
+  protected readonly replyText = linkedSignal<string | null, string>({
+    source: () => this.inboxStore.selectedContactId(),
+    computation: () => '',
+  });
+
   protected readonly isSendingReply = this.inboxStore.isSendingReply;
 
   /** Blocks empty submissions and, while a send is in flight, double submissions. */
@@ -40,10 +50,12 @@ export class MessageComposerComponent {
       return;
     }
 
-    const wasDeliveredToTelegram = await this.inboxStore.sendReply(this.replyText().trim());
+    const replyOutcome = await this.inboxStore.sendReply(this.replyText().trim());
 
-    // Keep the text on failure so the operator can retry without retyping it.
-    if (wasDeliveredToTelegram) {
+    // The text is kept only when retrying would help. If Telegram already delivered it, clearing
+    // the box is what stops the operator from sending the contact a duplicate; the banner explains
+    // what happened.
+    if (replyOutcome !== 'notSent') {
       this.replyText.set('');
     }
   }

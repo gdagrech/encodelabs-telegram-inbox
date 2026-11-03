@@ -24,6 +24,10 @@
     <div #messageScrollContainer class="conversation-panel__messages">
       @if (isLoading() && messages().length === 0) {
         <p class="conversation-panel__status" role="status">Cargando historial…</p>
+      } @else if (!hasLoaded() && messages().length === 0) {
+        <p class="conversation-panel__status">
+          No se pudo cargar el historial. El detalle está en el aviso de arriba.
+        </p>
       } @else if (messages().length === 0) {
         <p class="conversation-panel__status">
           Todavía no hay mensajes en esta conversación.

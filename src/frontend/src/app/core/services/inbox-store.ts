@@ -6,8 +6,18 @@ import {
   MessageAddedNotification,
   MessageView,
 } from '../models/inbox.models';
-import { InboxApiService, describeRequestFailure } from './inbox-api.service';
+import {
+  InboxApiService,
+  describeRequestFailure,
+  isReplyDeliveredButNotRecorded,
+} from './inbox-api.service';
 import { InboxRealtimeService } from './inbox-realtime.service';
+
+/**
+ * What became of a reply the operator sent. `deliveredButNotRecorded` exists because it is the one
+ * failure that must not be retried: the contact already has the message.
+ */
+export type ReplyOutcome = 'stored' | 'deliveredButNotRecorded' | 'notSent';
 
 /**
  * The single source of truth for what the inbox shows. Components read signals from here and call
@@ -26,6 +36,12 @@ export class InboxStore {
   private readonly isLoadingConversationState = signal(false);
   private readonly isSendingReplyState = signal(false);
   private readonly hasLoadedContactsState = signal(false);
+  /**
+   * Whether the open conversation's history was fetched successfully. Without it the interface
+   * cannot tell "this conversation has no messages" from "the request failed", and would show a
+   * reassuring empty state underneath an error banner.
+   */
+  private readonly hasLoadedConversationState = signal(false);
   private readonly errorMessageState = signal<string | null>(null);
 
   /**
@@ -41,6 +57,7 @@ export class InboxStore {
   readonly isLoadingConversation = this.isLoadingConversationState.asReadonly();
   readonly isSendingReply = this.isSendingReplyState.asReadonly();
   readonly hasLoadedContacts = this.hasLoadedContactsState.asReadonly();
+  readonly hasLoadedConversation = this.hasLoadedConversationState.asReadonly();
   readonly errorMessage = this.errorMessageState.asReadonly();
   readonly connectionState = this.inboxRealtimeService.connectionState.asReadonly();
 
@@ -94,6 +111,7 @@ export class InboxStore {
     if (!isContactStillListed) {
       this.selectedContactIdState.set(null);
       this.conversationMessagesState.set([]);
+      this.hasLoadedConversationState.set(false);
       return;
     }
 
@@ -107,6 +125,7 @@ export class InboxStore {
 
     this.selectedContactIdState.set(contactId);
     this.errorMessageState.set(null);
+    this.hasLoadedConversationState.set(false);
     // Drop the previous conversation immediately: showing one contact's messages under another
     // contact's header, even for a few hundred milliseconds, is worse than showing a loading state.
     this.conversationMessagesState.set([]);
@@ -114,13 +133,14 @@ export class InboxStore {
   }
 
   /**
-   * Sends a reply. Returns whether Telegram accepted it, so the composer only clears the text it
-   * actually managed to deliver.
+   * Sends a reply. The outcome distinguishes the two failures that demand opposite reactions:
+   * a reply Telegram never delivered should be retried, one it delivered but we failed to store
+   * must not be, because the contact would receive it twice.
    */
-  async sendReply(replyText: string): Promise<boolean> {
+  async sendReply(replyText: string): Promise<ReplyOutcome> {
     const selectedContactId = this.selectedContactIdState();
     if (selectedContactId === null || this.isSendingReplyState()) {
-      return false;
+      return 'notSent';
     }
 
     this.isSendingReplyState.set(true);
@@ -129,12 +149,13 @@ export class InboxStore {
     try {
       const sentMessage = await this.inboxApiService.sendReply(selectedContactId, replyText);
       this.appendMessageIfAbsent(selectedContactId, sentMessage);
-      return true;
+      return 'stored';
     } catch (sendFailure) {
       this.errorMessageState.set(
         describeRequestFailure(sendFailure, 'No se pudo enviar la respuesta a Telegram.'),
       );
-      return false;
+
+      return isReplyDeliveredButNotRecorded(sendFailure) ? 'deliveredButNotRecorded' : 'notSent';
     } finally {
       this.isSendingReplyState.set(false);
     }
@@ -176,6 +197,7 @@ export class InboxStore {
       this.conversationMessagesState.update((alreadyShownMessages) =>
         mergeMessagesBySequence(alreadyShownMessages, conversationHistory.messages),
       );
+      this.hasLoadedConversationState.set(true);
 
       await this.markConversationAsRead(contactId, conversationHistory.highestSequenceNumber);
     } catch (loadFailure) {

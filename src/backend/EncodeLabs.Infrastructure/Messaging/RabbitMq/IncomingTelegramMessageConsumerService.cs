@@ -138,22 +138,43 @@ public sealed class IncomingTelegramMessageConsumerService(
             return;
         }
 
-        bool processedSuccessfully = await TryProcessWithBoundedRetriesAsync(incomingTelegramMessage, stoppingToken);
+        DeliveryDisposition disposition =
+            await TryProcessWithBoundedRetriesAsync(incomingTelegramMessage, stoppingToken);
 
-        if (processedSuccessfully)
+        switch (disposition)
         {
-            await consumerChannel.BasicAckAsync(
-                deliveryArguments.DeliveryTag,
-                multiple: false,
-                cancellationToken: CancellationToken.None);
-        }
-        else
-        {
-            await DeadLetterAsync(consumerChannel, deliveryArguments);
+            case DeliveryDisposition.Acknowledge:
+                await consumerChannel.BasicAckAsync(
+                    deliveryArguments.DeliveryTag,
+                    multiple: false,
+                    cancellationToken: CancellationToken.None);
+                break;
+
+            case DeliveryDisposition.DeadLetter:
+                await DeadLetterAsync(consumerChannel, deliveryArguments);
+                break;
+
+            case DeliveryDisposition.LeaveUnacknowledged:
+                // The host is shutting down, not rejecting the message. Returning without acking or
+                // nacking leaves the delivery unconfirmed, so RabbitMQ requeues it when the channel
+                // closes and the next consumer picks it up. Nacking here would dead-letter a message
+                // whose only sin was arriving during a restart.
+                break;
         }
     }
 
-    private async Task<bool> TryProcessWithBoundedRetriesAsync(
+    /// <summary>
+    /// What should happen to a delivery once processing stops. Rejecting and simply not confirming
+    /// are deliberately distinct: only the first is a verdict about the message itself.
+    /// </summary>
+    private enum DeliveryDisposition
+    {
+        Acknowledge,
+        DeadLetter,
+        LeaveUnacknowledged
+    }
+
+    private async Task<DeliveryDisposition> TryProcessWithBoundedRetriesAsync(
         IncomingTelegramMessage incomingTelegramMessage,
         CancellationToken stoppingToken)
     {
@@ -175,12 +196,16 @@ public sealed class IncomingTelegramMessageConsumerService(
                         incomingTelegramMessage.UpdateId);
                 }
 
-                return true;
+                return DeliveryDisposition.Acknowledge;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                // Shutdown in progress: leave the delivery unacknowledged so it is redelivered.
-                return false;
+                logger.LogInformation(
+                    "Shutting down while processing Telegram update {UpdateId}; leaving the delivery "
+                        + "unconfirmed so RabbitMQ redelivers it.",
+                    incomingTelegramMessage.UpdateId);
+
+                return DeliveryDisposition.LeaveUnacknowledged;
             }
             catch (DomainRuleViolationException domainRuleViolationException)
             {
@@ -189,7 +214,7 @@ public sealed class IncomingTelegramMessageConsumerService(
                     "Telegram update {UpdateId} violates a domain rule and can never be stored; dead-lettering it.",
                     incomingTelegramMessage.UpdateId);
 
-                return false;
+                return DeliveryDisposition.DeadLetter;
             }
             catch (Exception processingException)
             {
@@ -203,14 +228,14 @@ public sealed class IncomingTelegramMessageConsumerService(
 
                 if (!hasAttemptsLeft)
                 {
-                    return false;
+                    return DeliveryDisposition.DeadLetter;
                 }
 
                 await Task.Delay(options.ProcessingRetryDelay * attemptNumber, stoppingToken);
             }
         }
 
-        return false;
+        return DeliveryDisposition.DeadLetter;
     }
 
     private async Task DeadLetterAsync(IChannel consumerChannel, BasicDeliverEventArgs deliveryArguments)
