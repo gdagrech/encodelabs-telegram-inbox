@@ -64,7 +64,7 @@ Estado real de cada requisito, con la evidencia que lo respalda. Se distingue ex
 | `.env.example` sin valores reales | **PASS** | Raíz. Sólo nombres, placeholders e instrucciones. |
 | `README.md` con requisitos, `.env`, ejecución, prueba E2E y supuestos | **PASS** | Raíz. 14 supuestos documentados. |
 | C4 nivel 1 y nivel 2 en SVG | **PASS** | `docs/architecture/`. SVG válidos (`xml.etree` parsea ambos) y renderizados para revisar la maquetación. |
-| 3 ADRs con la plantilla del enunciado, máx. 1 página | **PASS** | `docs/adr/`. Estado / Contexto / Alternativas / Decisión / Consecuencias. |
+| 3 ADRs con la plantilla del enunciado, máx. 1 página | **PASS** | `docs/adr/`. Estado / Contexto / Alternativas / Decisión / Consecuencias. Se sumó un cuarto, ADR-004, sobre el host único: el enunciado habilita ADRs adicionales y era la decisión propia de mayor alcance sin registrar. |
 | Documento de trabajo con IA, máx. 1 página | **PASS** | `docs/ai-usage.md`. |
 | Preguntas bonus | **PASS** | Sección 5 de este documento. |
 | `.env` fuera del repositorio | **PASS** | `.gitignore` incluye `.env` y `.env.*` con excepción para `.env.example`. No existe ningún `.env` en el árbol. |

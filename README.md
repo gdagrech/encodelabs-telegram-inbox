@@ -26,6 +26,39 @@ Telegram ──HTTPS──► ngrok ──► Webhook (valida secreto) ──►
 
 ---
 
+## Evaluación en 10 minutos
+
+Si tenés poco tiempo, este es el recorrido más corto que muestra todo lo que importa.
+
+**Minutos 1 a 4 — que funcione.** Completá el `.env` (sección 2) y corré `docker compose up --build`.
+Desde cero tarda unos 20 segundos en llegar a la línea que prueba que el registro automático
+funcionó:
+
+```
+Telegram webhook registered for https://....ngrok-free.app/api/telegram/webhook
+```
+
+Escribile al bot desde Telegram y abrí http://localhost:4200. El contacto aparece **sin recargar**.
+Respondé desde la bandeja y el mensaje llega al chat.
+
+**Minutos 5 a 7 — que esté bien resuelto.** Tres archivos, en este orden:
+
+| Archivo | Qué muestra |
+|---|---|
+| [docs/architecture/overview.md](docs/architecture/overview.md) | Cada caja del C4 mapeada a su archivo, el esquema de datos y los modos de falla |
+| [docs/adr/](docs/adr/) | Las cuatro decisiones, con las alternativas que se descartaron y por qué |
+| [src/backend/EncodeLabs.Domain/Messages/Message.cs](src/backend/EncodeLabs.Domain/Messages/Message.cs) | El mecanismo que resuelve el requisito 4 sin condiciones de carrera |
+
+**Minutos 8 a 10 — que sea honesto.** [docs/validation-checklist.md](docs/validation-checklist.md)
+traza cada requisito a la evidencia que lo respalda, y
+[docs/code-review.md](docs/code-review.md) registra 17 hallazgos propios, incluido **un juicio que
+se revirtió al verlo en ejecución** (CR-010) y el defecto que esa corrección destapó (CR-017).
+
+**Si querés romperlo:** `docker compose stop rabbitmq` y escribile al bot. El webhook devuelve `503`,
+Telegram reintenta y el mensaje entra solo cuando levantás el broker. Nada se pierde.
+
+---
+
 ## 1. Requisitos previos
 
 | Requisito | Detalle |
@@ -236,6 +269,7 @@ Decisiones tomadas ante lo que el enunciado no define:
 | [docs/adr/ADR-001-database.md](docs/adr/ADR-001-database.md) | Base de datos elegida |
 | [docs/adr/ADR-002-realtime.md](docs/adr/ADR-002-realtime.md) | Tecnología de tiempo real |
 | [docs/adr/ADR-003-telegram-rabbitmq.md](docs/adr/ADR-003-telegram-rabbitmq.md) | Flujo del webhook y topología de colas |
+| [docs/adr/ADR-004-single-deployable-host.md](docs/adr/ADR-004-single-deployable-host.md) | Un solo host desplegable (ADR propio, no pedido por el enunciado) |
 | [docs/ai-usage.md](docs/ai-usage.md) | Trabajo con IA |
 | [docs/validation-checklist.md](docs/validation-checklist.md) | Qué se validó, con evidencia, y preguntas bonus |
 | [docs/code-review.md](docs/code-review.md) | Log de revisión de código con hallazgos y correcciones |

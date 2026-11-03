@@ -12,7 +12,7 @@ tecnología). Es el puente entre ambos.
 | [`c4-context.svg`](c4-context.svg) | Nivel 1: el sistema, el operador y los servicios externos |
 | [`c4-containers.svg`](c4-containers.svg) | Nivel 2: los cinco contenedores de Compose |
 | Este documento | Trazabilidad C4 ↔ código, esquema de datos, garantías, modos de falla |
-| [`../adr/`](../adr/) | Las tres decisiones y sus alternativas descartadas |
+| [`../adr/`](../adr/) | Las cuatro decisiones y sus alternativas descartadas |
 | [`../validation-checklist.md`](../validation-checklist.md) | Qué se verificó y con qué evidencia |
 
 ---
@@ -152,6 +152,25 @@ Lo que el sistema promete, y el mecanismo que sostiene cada promesa.
 
 **Entrega *at-least-once*, no *exactly-once*.** Es deliberado: el ACK manual ocurre después del
 commit, así que una caída a mitad de camino produce una redelivery. La deduplicación la absorbe.
+
+### Para qué volumen está diseñado
+
+Declararlo importa: sin un sobre de carga, "esto escala" es una opinión. Las decisiones de este
+diseño apuntan a **un equipo de atención, no a una plataforma multiinquilino**:
+
+| Dimensión | Objetivo de diseño | Qué lo limita |
+|---|---|---|
+| Operadores simultáneos | decenas | Una sola instancia de API; sin backplane de SignalR |
+| Mensajes entrantes | del orden de cientos por minuto | `prefetch 10` y despacho secuencial en el consumidor |
+| Conversaciones abiertas | del orden de cientos | Sub-consultas correlacionadas en el listado de contactos |
+| Latencia del webhook | decenas de milisegundos | Medido: 43 ms y 104 ms con bot real, incluida la confirmación del broker |
+
+**El primer techo que se va a tocar es el listado de contactos**, no la ingesta: resuelve el contador
+de no leídos y la vista previa con una sub-consulta correlacionada por contacto. La salida está en
+la sección 6, y es desnormalizar el contador, no cachearlo.
+
+Fuera de ese sobre el diseño no se rompe, pero deja de ser el adecuado: a partir de ahí aplican los
+pasos de la ruta de escalado.
 
 ### El marcado como leído, en detalle
 
