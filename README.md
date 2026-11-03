@@ -211,6 +211,27 @@ curl -s -X POST http://localhost:8080/api/contacts/<CONTACT_ID>/read-state \
 El webhook (`POST /api/telegram/webhook`) **rechaza con 401** cualquier request sin el header
 `X-Telegram-Bot-Api-Secret-Token` correcto; podés comprobarlo mandándole un POST vacío.
 
+### Inspeccionar la base
+
+PostgreSQL **no publica su puerto al host**: solo es accesible desde la red de Compose, porque nada
+fuera del stack necesita llegarle. Por eso un cliente gráfico apuntado a `localhost:5432` no conecta.
+Para mirar los datos se entra por el contenedor, que ya tiene las credenciales en su entorno:
+
+```bash
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Dentro: `\dt` lista las tablas (`contacts`, `messages`), `\d messages` describe una. Las columnas
+las creó EF Core en PascalCase, así que **hay que citarlas**, porque sin comillas PostgreSQL las pasa
+a minúsculas:
+
+```sql
+select "Id", "TelegramUserId", "FirstName" from contacts;
+select "SequenceNumber", "Direction", "Text", "ReadAtUtc" from messages order by "SequenceNumber";
+```
+
+`Direction` es `1` entrante y `2` saliente; `ReadAtUtc` en `null` es un mensaje sin leer.
+
 ---
 
 ## 5. Comportamiento esperado ante errores
