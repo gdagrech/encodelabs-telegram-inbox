@@ -33,6 +33,8 @@ npm-debug.log*
 chat_inbox_tech_test.md
 # Standing instructions for the AI assistant: scaffolding for the work, not part of the solution.
 CLAUDE.md
+# Local tool permissions, specific to this machine.
+.claude/
 
 # ---------------------------------------------------------------------------------------------
 # Editors and OS
