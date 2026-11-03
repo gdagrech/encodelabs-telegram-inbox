@@ -31,7 +31,7 @@ servido por nginx.
 | Base de datos | `postgres` | `postgres:18-alpine` |
 | Túnel público | `ngrok` | `ngrok/ngrok:3`, apunta al puerto de la **API**, no del frontend |
 
-Dentro de `api` conviven tres responsabilidades que podrían haber sido procesos separados. ADR-003
+Dentro de `api` conviven tres responsabilidades que podrían haber sido procesos separados. ADR-004
 explica por qué no lo son:
 
 | Responsabilidad | Punto de entrada |
@@ -224,9 +224,31 @@ Decisiones propias:
 |---|---|
 | MediatR / CQRS | Los casos de uso son clases inyectadas directo. MediatR agregaría indirección sin corregir nada |
 | Redis | Nada necesita caché compartida. Entraría como backplane de SignalR recién con varias instancias |
-| Worker desplegable aparte | El consumidor necesita empujar por SignalR tras persistir; separarlo exigiría un backplane sólo para que dos procesos se hablen (ADR-003) |
+| Worker desplegable aparte | El consumidor necesita empujar por SignalR tras persistir; separarlo exigiría un backplane sólo para que dos procesos se hablen (ADR-004) |
 | Caché de contadores | Un contador de no leídos desactualizado erosiona la confianza del operador más de lo que la caché mejora la latencia |
 | Entidad `Conversation` | Un contacto es una conversación en Telegram privado |
+
+### Estrategia de tests
+
+El enunciado los pide opcionales y, si se incluyen, unitarios sobre el dominio. Hay **25 tests**
+(`tests/EncodeLabs.Domain.UnitTests`, xUnit v3) concentrados donde el dominio **decide**: un entrante
+nace no leído y un saliente nace leído, `MarkAsRead` es idempotente y se rechaza sobre un saliente,
+el límite de 4096 caracteres de Telegram en sus dos bordes, los cuatro niveles de respaldo de
+`DisplayName`, y que `RegisterActivity` ignore un timestamp más viejo para que una entrega fuera de
+orden no reordene la bandeja. Corren sin base ni broker porque el dominio no los conoce: eso es el
+desacople de la sección 2 siendo útil, no sólo prolijo.
+
+**No hay tests de integración, y es deliberado.** Las garantías más importantes del sistema no viven
+en código propio sino en la infraestructura: la deduplicación la garantiza un índice único de
+PostgreSQL, la no-pérdida la garantizan los *publisher confirms* y el ACK manual de RabbitMQ. Un test
+con un proveedor en memoria no ejercita ninguna de las dos —probaría el doble, no la garantía— y
+dejaría una luz verde que no significa nada. Esas propiedades se verificaron **contra la
+infraestructura real**, apagando el broker y la base con mensajes en vuelo; la evidencia está en
+[validation-checklist.md](../validation-checklist.md).
+
+Una nota de herramientas: los tests se corren con `dotnet run --project`, no con `dotnet test`. Son
+ejecutables auto-hospedados sobre Microsoft.Testing.Platform y el runner de `dotnet test` falla en
+este SDK; el diagnóstico completo está en CR-002 de [code-review.md](../code-review.md).
 
 ### Ruta de escalado, en orden
 

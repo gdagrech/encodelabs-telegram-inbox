@@ -68,7 +68,7 @@ Estado real de cada requisito, con la evidencia que lo respalda. Se distingue ex
 | Documento de trabajo con IA, máx. 1 página | **PASS** | `docs/ai-usage.md`. |
 | Preguntas bonus | **PASS** | Sección 5 de este documento. |
 | `.env` fuera del repositorio | **PASS** | `.gitignore` incluye `.env` y `.env.*` con excepción para `.env.example`. No existe ningún `.env` en el árbol. |
-| Tests unitarios sobre el dominio (opcional) | **PASS** | 25 tests, 0 fallos. |
+| Tests unitarios sobre el dominio (opcional) | **PASS** | 25 tests, 0 fallos: `dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release`. El alcance elegido —dominio sí, integración no— se justifica en *Estrategia de tests* de [architecture/overview.md](architecture/overview.md). |
 
 ---
 

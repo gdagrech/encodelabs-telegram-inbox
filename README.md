@@ -325,8 +325,15 @@ npm install
 npm start      # http://localhost:4200, proxea /api y /hubs a http://localhost:8080
 ```
 
-> Los tests se corren con `dotnet run` y no con `dotnet test`: ver CR-002 en
-> [docs/code-review.md](docs/code-review.md).
+Los **25 tests** son unitarios de dominio, como pide el enunciado, y cubren las reglas donde el
+dominio decide: estado de leído, el límite de 4096 de Telegram, el respaldo de `DisplayName` y el
+orden de la bandeja ante entregas desordenadas. No hay tests de integración a propósito: la
+deduplicación y la no-pérdida las garantizan un índice único y los *publisher confirms*, que un doble
+en memoria no ejercitaría. El razonamiento completo está en
+[docs/architecture/overview.md](docs/architecture/overview.md) → *Estrategia de tests*.
+
+> Se corren con `dotnet run` y no con `dotnet test`: son ejecutables auto-hospedados y el runner de
+> `dotnet test` falla en este SDK. Ver CR-002 en [docs/code-review.md](docs/code-review.md).
 
 ---
 
