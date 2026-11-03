@@ -1,0 +1,12 @@
+/* TypeScript configuration for the unit tests. Kept apart from tsconfig.app.json so the Vitest
+   globals are visible to the specs without leaking into the application build. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vitest/globals"]
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.ts"
+  ]
+}

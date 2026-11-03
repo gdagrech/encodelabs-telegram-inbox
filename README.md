@@ -345,10 +345,16 @@ cd src/backend
 dotnet build
 dotnet run --project EncodeLabs.Api     # necesita las variables de entorno de configuración
 
-# Tests (desde la raíz del repo, no desde src/backend)
+# Tests: todo de una, desde la raíz del repo
 cd /ruta/al/repo
-dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release       # 25 tests
-dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release  # 13 tests
+scripts/verify.sh            # build + los 80 tests
+scripts/verify.sh --smoke    # además, el stack levantado de punta a punta
+
+# O por separado
+dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release          # 25
+dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release     # 13
+dotnet run --project tests/EncodeLabs.Infrastructure.UnitTests -c Release  #  7
+dotnet run --project tests/EncodeLabs.Api.UnitTests -c Release             #  8
 
 # Frontend (requiere Node >= 24.15)
 cd src/frontend
@@ -356,12 +362,16 @@ npm install
 npm start      # http://localhost:4200, proxea /api y /hubs a http://localhost:8080
 ```
 
-Son **38 tests** en dos proyectos. Los 25 de dominio cubren las reglas donde el dominio decide:
-estado de leído, el límite de 4096 de Telegram, el respaldo de `DisplayName` y el orden de la bandeja
-ante entregas desordenadas. Los 13 de casos de uso, con dobles en memoria, cubren lo que **ninguna
-corrida real puede ejercitar**: que varios contactos no se crucen. Telegram numera los mensajes por
-chat, así que dos personas producen el mismo `message_id` de forma rutinaria, y comprobarlo en vivo
-exigiría varias cuentas.
+Son **80 tests**: 53 de backend (xUnit v3) y 27 de frontend (Vitest). Los de frontend corren en
+Docker con el Node fijado, porque el CLI de Angular exige ≥ 24.15 y la máquina puede tener otro.
+
+La mayoría son **tests de regresión con dueño**: existen porque un defecto concreto llegó primero al
+sistema andando, y cada uno nombra el hallazgo que lo motivó. Antes de darlos por buenos se revirtió
+la corrección para verlos fallar — un test que nunca falló no prueba nada.
+
+Lo que no se puede probar con tests unitarios —cómo están cableados los contenedores— vive en
+[scripts/smoke-test.sh](scripts/smoke-test.sh), que corre contra el stack levantado. Ahí está, entre
+otras, la comprobación de que nginx sigue a la API cuando cambia de dirección.
 
 No hay tests de integración a propósito: la deduplicación y la no-pérdida las garantizan un índice
 único y los *publisher confirms*, que un doble no ejercitaría. El razonamiento completo está en

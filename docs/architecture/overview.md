@@ -236,8 +236,20 @@ Decisiones propias:
 
 ### Estrategia de tests
 
-El enunciado los pide opcionales y, si se incluyen, unitarios sobre el dominio. Son **38 en total**,
-xUnit v3, repartidos en dos proyectos según qué protegen.
+Se corre todo con un solo comando, que es también la compuerta:
+
+```bash
+scripts/verify.sh            # build + los 80 tests
+scripts/verify.sh --smoke    # además, el stack levantado de punta a punta
+```
+
+Ningún cambio se da por revisado hasta que ese script termina en 0, y
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) lo repite en cada push y cada pull
+request. **Cada test de regresión existe porque un defecto real llegó primero al sistema andando**;
+el log de revisión los nombra uno por uno.
+
+El enunciado los pide opcionales y, si se incluyen, unitarios sobre el dominio. Son **80 en total**:
+53 de backend en xUnit v3 y 27 de frontend en Vitest, repartidos según qué protegen.
 
 **25 tests de dominio** (`tests/EncodeLabs.Domain.UnitTests`) concentrados donde el dominio
 **decide**: un entrante nace no leído y un saliente nace leído, `MarkAsRead` es idempotente y se
@@ -254,6 +266,33 @@ chat*, así que dos personas distintas producen el mismo `message_id` de forma r
 deduplicación no estuviera acotada al contacto, el mensaje del segundo se descartaría en silencio.
 También cubren que una respuesta que Telegram entregó pero la base rechazó se reporte como entregada
 y no como fallida, y que nada se anuncie por SignalR cuando el commit falla.
+
+**7 tests de la política de reintentos** (`tests/EncodeLabs.Infrastructure.UnitTests`) sobre
+`IncomingMessageRetryPolicy`, que se extrajo del consumidor justamente para poder probarla sin un
+broker. Pinchan la decisión que ya estuvo mal una vez: que apagarse **no** es un veredicto sobre el
+mensaje, que una violación de dominio no se reintenta, y que los intentos se agotan en el número
+exacto configurado.
+
+**8 tests del mapeo HTTP** (`tests/EncodeLabs.Api.UnitTests`) sobre `InboxExceptionHandler`. El
+código de estado es un contrato —el cliente redacta su mensaje a partir de él y Telegram decide si
+reintenta— así que cada caso queda fijado, incluido que un rechazo y una Bot API inalcanzable **no**
+compartan código, y que una falla inesperada nunca filtre su mensaje al cliente.
+
+**27 tests de frontend** (Vitest con jsdom) sobre las tres piezas que fallaron: la redacción de
+errores, el borrador del compositor y los estados vacíos del listado.
+
+### Lo que los tests no pueden alcanzar
+
+Un defecto como CR-024 —nginx cacheando la dirección de la API— no es una propiedad de ninguna clase:
+es una propiedad del cableado entre contenedores. Por eso existe
+[`scripts/smoke-test.sh`](../../scripts/smoke-test.sh), que corre contra el stack levantado y, entre
+otras cosas, **recrea el contenedor de la API forzándole una dirección distinta** —poniendo otro
+contenedor en la anterior— y comprueba que nginx la siga sin reiniciarse.
+
+Ese guion también deja asentado un límite honesto: la recuperación **no es instantánea**. nginx
+mantiene la respuesta anterior hasta que vence el TTL del resolver, así que hay una ventana de unos
+segundos en la que las peticiones siguen fallando. La prueba espera por eso en vez de exigir un
+`200` inmediato.
 
 **No hay tests de integración, y es deliberado.** Las garantías más importantes del sistema no viven
 en código propio sino en la infraestructura: la deduplicación la garantiza un índice único de

@@ -5,7 +5,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build"
+    "build": "ng build",
+    "test": "ng test --watch=false"
   },
   "dependencies": {
     "@angular/common": "^22.2.0",
@@ -20,6 +21,8 @@
     "@angular/build": "^22.2.5",
     "@angular/cli": "^22.2.5",
     "@angular/compiler-cli": "^22.2.0",
-    "typescript": "~6.0.2"
+    "jsdom": "^26.1.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.0.8"
   }
 }

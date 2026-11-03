@@ -382,13 +382,47 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
   `ProblemDetails`; si no lo es, el mensaje señala a la API inalcanzable.
 - **Estado:** CORREGIDO.
 
+## La compuerta
+
+Ocho defectos en dos pasadas de revisión dejaron clara una asimetría: **encontrarlos no sirve si
+nada impide que vuelvan**. Desde CR-025, la regla es que ningún cambio está revisado hasta que
+[`scripts/verify.sh`](../scripts/verify.sh) termina en 0, y
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) lo repite en cada push y cada pull request.
+
+Cada hallazgo corregido tiene ahora un test que falla si alguien revierte la corrección, ubicado
+donde estuvo el error:
+
+| Hallazgo | Dónde quedó cubierto |
+|---|---|
+| CR-016, CR-020, CR-021 | `EncodeLabs.Api.UnitTests` — el mapeo de fallas a códigos de estado |
+| CR-018 | `EncodeLabs.Infrastructure.UnitTests` — la política de reintentos, extraída del consumidor para poder probarla sin broker |
+| CR-019, CR-020 | `message-composer.component.spec.ts` — el borrador y qué lo limpia |
+| CR-022 | `contact-list.component.spec.ts` — el estado vacío contra la carga fallida |
+| CR-010, CR-025 | `inbox-api.service.spec.ts` — la redacción de errores y quién produjo la respuesta |
+| CR-021, y el secreto del webhook | `scripts/smoke-test.sh` — contra la API real |
+| **CR-024** | `scripts/smoke-test.sh` — **no tiene test unitario posible**: es cableado entre contenedores |
+
+Los tests se verificaron revirtiendo la corrección y mirándolos fallar. CR-018 derriba
+`ShutdownLeavesTheDeliveryUnacknowledgedInsteadOfDeadLetteringIt`; CR-019 derriba los dos tests del
+borrador. **Un test que nunca falló no es evidencia, es una afirmación.**
+
+La prueba de humo de CR-024 además dejó al descubierto un matiz que no habíamos medido: la
+recuperación de nginx **no es instantánea**, porque mantiene la dirección anterior hasta que vence el
+TTL del resolver. La primera versión del guion falló por exigir un `200` inmediato. Está documentado
+en vez de disimulado bajando el TTL.
+
 ## Comandos efectivamente ejecutados
 
 | Comando | Resultado |
 |---|---|
 | `dotnet build` (solución completa, `src/backend`) | **OK** — `Build succeeded.` sin advertencias, con `TreatWarningsAsErrors`. |
 | `dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release` | **OK** — `Total: 25, Errors: 0, Failed: 0, Skipped: 0`. |
-| `dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release` | **OK** — `Total: 13, Errors: 0, Failed: 0, Skipped: 0`. Varios remitentes, respuestas del operador y recorte de vistas previas. |
+| `dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release` | **OK** — `Total: 13, Errors: 0, Failed: 0`. Varios remitentes, respuestas del operador y recorte de vistas previas. |
+| `dotnet run --project tests/EncodeLabs.Infrastructure.UnitTests -c Release` | **OK** — `Total: 7, Errors: 0, Failed: 0`. La política de reintentos y las tres disposiciones de una entrega. |
+| `dotnet run --project tests/EncodeLabs.Api.UnitTests -c Release` | **OK** — `Total: 8, Errors: 0, Failed: 0`. El mapeo de fallas a códigos de estado. |
+| `ng test` (en Docker, Node fijado) | **OK** — 27 tests en 3 archivos, 0 fallos. |
+| `scripts/verify.sh` | **OK** — build y los 80 tests en verde. |
+| `scripts/smoke-test.sh` | **OK** — contra el stack levantado, incluida la recreación de la API en otra dirección. |
 | `dotnet ef migrations add InitialInboxSchema` | **OK** — migración generada e inspeccionada (identidad, `timestamptz`, índice único de deduplicación). |
 | `npx ng build` (producción) | **OK** — 245,55 kB iniciales / 65,43 kB transferidos, sin errores de plantilla ni de tipos. |
 | `docker compose config` | **OK** — configuración válida, interpolación correcta. |

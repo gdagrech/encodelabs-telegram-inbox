@@ -138,8 +138,16 @@ public sealed class IncomingTelegramMessageConsumerService(
             return;
         }
 
-        DeliveryDisposition disposition =
-            await TryProcessWithBoundedRetriesAsync(incomingTelegramMessage, stoppingToken);
+        IncomingMessageRetryPolicy retryPolicy = new(
+            options.MaximumProcessingAttempts,
+            options.ProcessingRetryDelay,
+            logger);
+
+        DeliveryDisposition disposition = await retryPolicy.ProcessWithBoundedRetriesAsync(
+            incomingTelegramMessage,
+            HandOverToApplicationAsync,
+            Task.Delay,
+            stoppingToken);
 
         switch (disposition)
         {
@@ -164,78 +172,26 @@ public sealed class IncomingTelegramMessageConsumerService(
     }
 
     /// <summary>
-    /// What should happen to a delivery once processing stops. Rejecting and simply not confirming
-    /// are deliberately distinct: only the first is a verdict about the message itself.
+    /// Resolves the use case in its own scope and runs it. Handed to the retry policy as a delegate
+    /// so the policy stays free of both RabbitMQ and the service container.
     /// </summary>
-    private enum DeliveryDisposition
-    {
-        Acknowledge,
-        DeadLetter,
-        LeaveUnacknowledged
-    }
-
-    private async Task<DeliveryDisposition> TryProcessWithBoundedRetriesAsync(
+    private async Task HandOverToApplicationAsync(
         IncomingTelegramMessage incomingTelegramMessage,
-        CancellationToken stoppingToken)
+        CancellationToken cancellationToken)
     {
-        for (int attemptNumber = 1; attemptNumber <= options.MaximumProcessingAttempts; attemptNumber++)
+        await using AsyncServiceScope serviceScope = serviceScopeFactory.CreateAsyncScope();
+        ProcessIncomingTelegramMessageHandler handler = serviceScope.ServiceProvider
+            .GetRequiredService<ProcessIncomingTelegramMessageHandler>();
+
+        IncomingMessageProcessingOutcome outcome =
+            await handler.HandleAsync(incomingTelegramMessage, cancellationToken);
+
+        if (outcome == IncomingMessageProcessingOutcome.DuplicateDiscarded)
         {
-            try
-            {
-                await using AsyncServiceScope serviceScope = serviceScopeFactory.CreateAsyncScope();
-                ProcessIncomingTelegramMessageHandler handler = serviceScope.ServiceProvider
-                    .GetRequiredService<ProcessIncomingTelegramMessageHandler>();
-
-                IncomingMessageProcessingOutcome outcome =
-                    await handler.HandleAsync(incomingTelegramMessage, stoppingToken);
-
-                if (outcome == IncomingMessageProcessingOutcome.DuplicateDiscarded)
-                {
-                    logger.LogDebug(
-                        "Telegram update {UpdateId} was already stored; acknowledging the redelivery.",
-                        incomingTelegramMessage.UpdateId);
-                }
-
-                return DeliveryDisposition.Acknowledge;
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                logger.LogInformation(
-                    "Shutting down while processing Telegram update {UpdateId}; leaving the delivery "
-                        + "unconfirmed so RabbitMQ redelivers it.",
-                    incomingTelegramMessage.UpdateId);
-
-                return DeliveryDisposition.LeaveUnacknowledged;
-            }
-            catch (DomainRuleViolationException domainRuleViolationException)
-            {
-                logger.LogError(
-                    domainRuleViolationException,
-                    "Telegram update {UpdateId} violates a domain rule and can never be stored; dead-lettering it.",
-                    incomingTelegramMessage.UpdateId);
-
-                return DeliveryDisposition.DeadLetter;
-            }
-            catch (Exception processingException)
-            {
-                bool hasAttemptsLeft = attemptNumber < options.MaximumProcessingAttempts;
-                logger.LogError(
-                    processingException,
-                    "Attempt {AttemptNumber}/{MaximumProcessingAttempts} to process Telegram update {UpdateId} failed.",
-                    attemptNumber,
-                    options.MaximumProcessingAttempts,
-                    incomingTelegramMessage.UpdateId);
-
-                if (!hasAttemptsLeft)
-                {
-                    return DeliveryDisposition.DeadLetter;
-                }
-
-                await Task.Delay(options.ProcessingRetryDelay * attemptNumber, stoppingToken);
-            }
+            logger.LogDebug(
+                "Telegram update {UpdateId} was already stored; acknowledging the redelivery.",
+                incomingTelegramMessage.UpdateId);
         }
-
-        return DeliveryDisposition.DeadLetter;
     }
 
     private async Task DeadLetterAsync(IChannel consumerChannel, BasicDeliverEventArgs deliveryArguments)

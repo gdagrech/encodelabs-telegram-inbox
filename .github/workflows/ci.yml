@@ -1,0 +1,104 @@
+name: Verificación
+
+# Corre en cada push y en cada pull request. Un pull request con esta comprobación en rojo no
+# debería aprobarse: cada test de regresión que corre acá existe porque un defecto real llegó antes
+# al sistema andando (ver docs/code-review.md).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend — build y tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: src/backend/global.json
+
+      - name: Compilar con TreatWarningsAsErrors
+        run: dotnet build src/backend --nologo
+
+      # Se corren con "dotnet run" y no con "dotnet test": son ejecutables auto-hospedados sobre
+      # Microsoft.Testing.Platform y el runner de "dotnet test" falla en este SDK (CR-002).
+      - name: Tests de dominio
+        run: dotnet run --project tests/EncodeLabs.Domain.UnitTests -c Release
+
+      - name: Tests de casos de uso
+        run: dotnet run --project tests/EncodeLabs.Application.UnitTests -c Release
+
+      - name: Tests de infraestructura
+        run: dotnet run --project tests/EncodeLabs.Infrastructure.UnitTests -c Release
+
+      - name: Tests de la API
+        run: dotnet run --project tests/EncodeLabs.Api.UnitTests -c Release
+
+  frontend:
+    name: Frontend — build y tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      # El CLI de Angular exige Node >= 24.15; fijarlo acá evita el fallo silencioso de "versión
+      # vieja" que aparece como un error de herramientas y no de código.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.15'
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build
+
+  compose:
+    name: Compose — arranque y pruebas de humo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Credenciales descartables sólo para este arranque. El bot y el túnel no se usan acá: las
+      # pruebas de humo no tocan Telegram, y los secretos reales nunca viven en el repositorio.
+      - name: Preparar un .env de prueba
+        run: |
+          cp .env.example .env
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "RABBITMQ_DEFAULT_PASS=$(openssl rand -hex 16)"
+            echo "TELEGRAM_BOT_TOKEN=000000000:ci-placeholder-no-es-un-token-real"
+            echo "TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 24)"
+            echo "NGROK_AUTHTOKEN=ci-placeholder"
+          } >> .env
+
+      - name: Levantar el stack
+        run: docker compose up --detach --build postgres rabbitmq api frontend
+
+      - name: Esperar a que la API esté sana
+        run: |
+          for _ in $(seq 1 40); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health)" = "200" ]; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "La API no quedó sana a tiempo."
+          docker compose logs api
+          exit 1
+
+      - name: Pruebas de humo
+        run: ./scripts/smoke-test.sh
+
+      - name: Logs si algo falló
+        if: failure()
+        run: docker compose logs
