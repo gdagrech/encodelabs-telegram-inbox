@@ -68,7 +68,7 @@ Lo generado **no se aceptó por inspección visual**. El filtro, en orden de ren
 ## 5. Estado de la validación humana
 
 - ☑ Prueba con **bot y túnel reales**, con credenciales del autor, operando la interfaz en el
-  navegador. Los 18 casos de la matriz quedaron cerrados.
+  navegador. Los 19 casos de la matriz quedaron cerrados.
 - ☐ **Revisión humana del código** por el autor antes de publicar el repositorio.
 
 Esa corrida destapó tres defectos en cadena. CR-010 (mezcla de idiomas en los errores) se había

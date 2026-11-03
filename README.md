@@ -375,6 +375,27 @@ en memoria no ejercitaría. El razonamiento completo está en
 | `docker compose up` falla al construir el frontend | Normalmente es `node_modules` local filtrándose; el build usa `.dockerignore`. Probá `docker compose build --no-cache frontend`. |
 | Mensajes que no aparecen y la cola crece | Mirá http://localhost:15672 → si crecen los mensajes en `...incoming-messages.dead-letter`, el consumidor los descartó; el motivo está en `docker compose logs api`. |
 
+### Inspeccionar y reprocesar la dead-letter queue
+
+Un mensaje que agota los 3 intentos del consumidor termina en
+`encodelabs.inbox.telegram.incoming-messages.dead-letter` y **no vuelve solo**: Telegram ya recibió
+`202` cuando se encoló, así que tampoco lo reintenta. Recuperarlo es manual y deliberado
+(supuesto 12).
+
+En http://localhost:15672 → *Queues* → la cola `...dead-letter` → panel **Get messages**. Dejá
+**Ack Mode** en `Nack message requeue true`: con `Automatic ack` **mirar el mensaje lo borra**,
+porque la consola consume de verdad. Vas a ver el payload JSON y la cabecera `x-death` con el motivo
+del descarte, la cola de origen y cuántas veces murió.
+
+Para reprocesarlo: copiá el payload y publicalo en *Exchanges* → `encodelabs.inbox.telegram` →
+**Publish message**, con routing key `telegram.incoming-message`. Después volvé a la cola y sacalo
+de la DLQ con **Ack Mode** en `Automatic ack`, que ahí sí es lo que querés.
+
+**Reprocesar es seguro aunque no sepas si el mensaje alcanzó a persistirse**: el índice único
+`(ContactId, TelegramMessageId)` rechaza el duplicado y el consumidor lo registra como
+`Discarded duplicate delivery`. Verificado publicando el mismo payload dos veces: la segunda no
+creó una fila nueva.
+
 ---
 
 ## 10. Estado de la validación

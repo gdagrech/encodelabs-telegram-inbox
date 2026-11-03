@@ -309,12 +309,16 @@ ngrok real. Cierra los riesgos 1, 2, 3 y 6 de la lista anterior.
    íntegro y recuperable, pero **el reproceso es manual**. Es una decisión consciente —reencolar
    haría un bucle infinito con un mensaje venenoso— y en producción se acompañaría de una alerta
    sobre la profundidad de esa cola; no se agregó observabilidad porque el enunciado no la pide.
+   El procedimiento de recuperación está documentado en el README (sección 9) y **ejecutado de
+   punta a punta** en E-19: el mensaje descartado volvió a la bandeja y republicarlo dos veces no
+   duplicó nada. El riesgo sigue abierto porque la recuperación requiere un operador, no porque el
+   mensaje sea irrecuperable.
 2. **El camino `504` de CR-016 no se forzó.** Verificar "la Bot API no responde" exigiría cortar la
    salida del contenedor hacia `api.telegram.org`. El rechazo (`502`) sí se verificó en vivo.
 3. **Entrega *at-least-once*, no *exactly-once*.** Propiedad del diseño; la deduplicación la
    absorbe, y quedó demostrada.
 4. **Entre el commit y la notificación de SignalR no hay atomicidad.** El cliente reconcilia al
    reconectar y al refrescar (ADR-002).
-5. **E-13 y E-14 no se ejecutaron.** Reconexión del cliente ante `restart api` y recuperación tras
-   un refresco del navegador. El push en vivo sí se observó: un mensaje real apareció en la bandeja
-   sin recargar.
+5. **La conversación abierta no sobrevive al refresco.** El historial sí se recupera entero desde la
+   API, pero la selección es estado en memoria y vuelve a cero (supuesto 15 del README). No es un
+   defecto de recuperación sino la consecuencia de no tener ruta por conversación.
