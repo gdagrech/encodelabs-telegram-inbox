@@ -51,9 +51,10 @@ Respondé desde la bandeja y el mensaje llega al chat.
 
 **Minutos 8 a 10 — que sea honesto.** [docs/validation-checklist.md](docs/validation-checklist.md)
 traza cada requisito a la evidencia que lo respalda, y
-[docs/code-review.md](docs/code-review.md) registra 23 hallazgos propios, incluido **un juicio que
-se revirtió al verlo en ejecución** (CR-010), el defecto que esa corrección destapó (CR-017) y un
-comentario que declaraba lo contrario de lo que hacía el código (CR-018).
+[docs/code-review.md](docs/code-review.md) registra 25 hallazgos propios, incluido **un juicio que
+se revirtió al verlo en ejecución** (CR-010), el defecto que esa corrección destapó (CR-017), un
+comentario que declaraba lo contrario de lo que hacía el código (CR-018) y **un defecto que
+introdujo una corrección anterior** (CR-025).
 
 **Si querés romperlo:** `docker compose stop rabbitmq` y escribile al bot. El webhook devuelve `503`,
 Telegram reintenta y el mensaje entra solo cuando levantás el broker. Nada se pierde.
@@ -381,6 +382,7 @@ No hay tests de integración a propósito: la deduplicación y la no-pérdida la
 | Escribo al bot y no pasa nada | Revisá `curl -s http://localhost:8080/api/telegram/webhook-status`: si `lastErrorMessage` tiene algo, ahí está la causa. Un bot solo puede tener **un** webhook: si registraste el mismo bot desde otro lado, el último gana. |
 | En el log de la API: `Rejected a webhook call with a missing or incorrect secret token header` | El webhook registrado en Telegram usa un secreto distinto al del `.env` actual. Reiniciá la API para re-registrarlo. |
 | La bandeja muestra "Sin tiempo real" | El hub no conecta. Verificá que el contenedor `api` esté sano (`docker compose ps`). El cliente reintenta solo con back-off. |
+| Todo falla con `502` **pero los contenedores están sanos** | Es el proxy, no la API: compará `curl localhost:8080/api/contacts` (directo) con `curl localhost:4200/api/contacts` (por nginx). Si el primero da `200` y el segundo `502`, mirá `docker compose logs frontend` para ver a qué dirección está yendo. |
 | `docker compose up` falla al construir el frontend | Normalmente es `node_modules` local filtrándose; el build usa `.dockerignore`. Probá `docker compose build --no-cache frontend`. |
 | Mensajes que no aparecen y la cola crece | Mirá http://localhost:15672 → si crecen los mensajes en `...incoming-messages.dead-letter`, el consumidor los descartó; el motivo está en `docker compose logs api`. |
 

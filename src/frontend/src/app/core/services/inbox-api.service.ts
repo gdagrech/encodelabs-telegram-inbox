@@ -60,6 +60,13 @@ export function describeRequestFailure(requestFailure: unknown, fallbackMessage:
     return 'No se pudo contactar al servidor. Verificá que la API esté levantada.';
   }
 
+  // nginx sits in front of the API and emits its own 502 and 504 when it cannot reach it, with an
+  // HTML body instead of ProblemDetails. Those are about the proxy, not about Telegram, so they must
+  // not be worded as a Telegram failure: the operator would go looking at the wrong system.
+  if (!hasProblemDetailsBody(requestFailure) && requestFailure.status >= 502) {
+    return 'No se pudo llegar a la API. Verificá que el contenedor esté levantado.';
+  }
+
   const problemDetails = requestFailure.error as { detail?: string } | null;
   const technicalReason = problemDetails?.detail;
 
@@ -86,6 +93,15 @@ export function describeRequestFailure(requestFailure: unknown, fallbackMessage:
     default:
       return fallbackMessage;
   }
+}
+
+/**
+ * Whether the failure carries the API's own ProblemDetails body. A proxy between the browser and the
+ * API answers with HTML, so a status code alone does not prove who produced the response.
+ */
+function hasProblemDetailsBody(requestFailure: HttpErrorResponse): boolean {
+  const responseBody = requestFailure.error;
+  return typeof responseBody === 'object' && responseBody !== null && 'title' in responseBody;
 }
 
 /** Identifies the response the API marks when Telegram delivered a reply the inbox could not store. */

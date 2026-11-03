@@ -69,7 +69,7 @@ Lo generado **no se aceptó por inspección visual**. El filtro, en orden de ren
 ## 5. Estado de la validación humana
 
 - ☑ Prueba con **bot y túnel reales**, con credenciales del autor, operando la interfaz en el
-  navegador. Los 21 casos de la matriz quedaron cerrados.
+  navegador. Los 22 casos de la matriz quedaron cerrados.
 - ☑ **Segunda revisión completa de `src/`** ya con el sistema funcionando: seis defectos más (CR-018
   a CR-023). Tres sólo aparecen con varios contactos o con una falla a mitad de camino, que una
   corrida feliz nunca expone. Verificar de punta a punta no reemplaza revisar.

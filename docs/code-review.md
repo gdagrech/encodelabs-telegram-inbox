@@ -346,6 +346,42 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
   suplente.
 - **Estado:** CORREGIDO. Cubierto por `AnEmojiStraddlingTheCutIsDroppedRatherThanSplit`.
 
+### CR-024 — nginx cacheaba la dirección de la API y quedaba hablando sola
+- **Severidad:** ALTA
+- **Dónde:** `src/frontend/nginx.conf`
+- **Evidencia:** la API respondía `200` en `localhost:8080` y **sana** según `docker compose ps`,
+  pero todo fallaba con `502` a través de `localhost:4200`. En el log de nginx:
+  `connect() failed (111: Connection refused) ... upstream: "http://172.26.0.4:8080/..."`, mientras
+  el contenedor `api` estaba en `172.26.0.2`.
+- **Causa:** `proxy_pass http://api:8080` con un nombre literal se resuelve **una sola vez, al cargar
+  la configuración**, y nginx cachea esa dirección para siempre. Cada vez que el contenedor `api` se
+  recrea recibe una dirección nueva, y nginx sigue marcando la vieja.
+- **Por qué importa:** la bandeja queda completamente rota —sin listado y sin tiempo real— con todos
+  los contenedores sanos, que es el diagnóstico más confuso posible. Y se dispara siguiendo
+  **nuestras propias instrucciones**: el README recomienda `docker compose restart api` en
+  Troubleshooting. El arranque limpio nunca lo expone; sólo aparece al reiniciar.
+- **Corrección:** `resolver 127.0.0.11` (el DNS interno de Docker) y el destino nombrado a través de
+  una variable, `proxy_pass http://$inbox_api_host:8080`, que fuerza a nginx a resolver en cada
+  petición en vez de cachear.
+- **Estado:** CORREGIDO y **verificado forzando el escenario** (E-22): se recreó `api` con otro
+  contenedor ocupando su dirección anterior, de modo que pasó de `172.26.0.2` a `172.26.0.7`. Sin
+  reiniciar nginx, `/api/contacts` y `/hubs/inbox/negotiate` siguieron devolviendo `200`.
+
+### CR-025 — El `502` de nginx se mostraba como un rechazo de Telegram
+- **Severidad:** MEDIA
+- **Dónde:** `src/frontend/src/app/core/services/inbox-api.service.ts`, `describeRequestFailure`
+- **Evidencia:** con nginx sin poder llegar a la API (CR-024), la bandeja mostró
+  `Telegram rechazó la respuesta.` — Telegram nunca estuvo involucrado.
+- **Causa:** la corrección de CR-016 asumió que **todo** `502` proviene de nuestro manejador de
+  excepciones. Pero hay un proxy inverso delante que emite sus propios `502` y `504`, con cuerpo
+  HTML en vez de `ProblemDetails`.
+- **Por qué importa:** manda al operador a investigar el sistema equivocado. Es además una lección
+  sobre la corrección anterior: **un código de estado no identifica quién produjo la respuesta**
+  cuando hay intermediarios en el camino.
+- **Corrección:** antes de interpretar `502`/`504` se comprueba que el cuerpo sea realmente nuestro
+  `ProblemDetails`; si no lo es, el mensaje señala a la API inalcanzable.
+- **Estado:** CORREGIDO.
+
 ## Comandos efectivamente ejecutados
 
 | Comando | Resultado |
