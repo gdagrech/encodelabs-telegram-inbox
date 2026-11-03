@@ -105,7 +105,10 @@ razonables.
 docker compose up --build
 ```
 
-Eso es todo. El arranque hace, en orden:
+Eso es todo. Corre en primer plano a propósito, para que se vea el arranque; si preferís la
+terminal libre, `docker compose up -d --build` y después `docker compose logs -f api`.
+
+El arranque hace, en orden:
 
 1. Levanta PostgreSQL y RabbitMQ y **espera a que estén sanos** (healthchecks).
 2. La API aplica las migraciones de EF Core (con reintentos mientras la base termina de arrancar).
@@ -134,12 +137,16 @@ info: EncodeLabs.Api.BackgroundServices.TelegramWebhookRegistrationService[0]
 | Consola de RabbitMQ | http://localhost:15672 (usuario/clave del `.env`) |
 | Inspector de ngrok | http://localhost:4040 |
 
-Para bajar todo:
+### Bajar y volver a levantar
 
-```bash
-docker compose down           # conserva los datos
-docker compose down --volumes # borra base y broker
-```
+| Comando | Qué hace |
+|---|---|
+| `docker compose stop` | Apaga los servicios conservando contenedores y datos. Se retoma con `docker compose start`. |
+| `docker compose down` | Elimina los contenedores y **conserva** base y broker (volúmenes). |
+| `docker compose down --volumes` | Elimina también los volúmenes: arranque limpio, sin contactos ni mensajes. |
+
+En los tres casos, al volver a levantar ngrok abre un túnel **con una URL nueva** y la API registra
+el webhook otra vez sin intervención manual.
 
 ---
 
