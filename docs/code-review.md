@@ -2,7 +2,8 @@
 
 **Alcance:** revisión propia (asistida por Claude Code) sobre todo el código de `src/` y la
 configuración de Compose, previa a la entrega.
-**Fecha:** 2026-11-02.
+**Fecha:** 2026-11-02, con una segunda pasada el 2026-11-03 contra el stack corriendo (reproceso de
+la dead-letter queue y reintento de migraciones).
 **Revisor humano:** ☐ pendiente — este documento registra únicamente la revisión automatizada y los
 comandos realmente ejecutados. No se reporta ninguna revisión humana que no haya ocurrido.
 
@@ -11,9 +12,9 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
 | Área | Resultado |
 |---|---|
 | Dirección de dependencias entre capas | Sin hallazgos. `Domain` no referencia paquetes; `Application` solo abstracciones; `Infrastructure`/`Api` implementan los puertos. |
-| Seguridad del webhook | Hallazgos menores (ver CR-008). Secreto validado en tiempo fijo; `401` sin tocar la cola. |
+| Seguridad del webhook | Sin hallazgos. Secreto validado en tiempo fijo; `401` sin tocar la cola. |
 | Confirmaciones de publicación y ACK manual | Sin hallazgos. |
-| Idempotencia / deduplicación | Sin hallazgos en el diseño; verificación en vivo pendiente (ver riesgos abiertos). |
+| Idempotencia / deduplicación | Sin hallazgos. Verificada en vivo dos veces: con los reintentos reales de Telegram (E-11) y republicando a mano el mismo payload desde la DLQ (E-19), que el consumidor descartó como `Discarded duplicate delivery` sin crear fila. |
 | Arranque y resiliencia | **CR-003** (alto). |
 | Enrutamiento HTTP | **CR-004**. |
 | Sincronización de estado en el cliente | **CR-005**, **CR-006**. |
@@ -65,7 +66,10 @@ comandos realmente ejecutados. No se reporta ninguna revisión humana que no hay
   y `docker compose up` habría quedado en un *restart loop*.
 - **Corrección:** `IsDatabaseNotReadyYet` ahora recorre toda la cadena de `InnerException` buscando
   `NpgsqlException`, `SocketException` o `TimeoutException`.
-- **Estado:** CORREGIDO. Compila; la verificación en vivo depende de la corrida de Compose.
+- **Estado:** CORREGIDO y **verificado forzando el escenario**: con `postgres` detenido y
+  `restart api`, el log muestra `PostgreSQL is not ready yet (attempt 1..10): Name or service not
+  known` —la `SocketException` anidada que antes no entraba al filtro— y, al volver la base,
+  `Database schema is up to date (attempt 11)`. La API no murió ni entró en *restart loop*.
 
 ### CR-004 — El listado de contactos quedaba mapeado con barra final
 - **Severidad:** MEDIA
