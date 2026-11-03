@@ -15,9 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Se pide la banda 10.0.x en vez de leer global.json: ese archivo fija "10.0.0" con
+      # rollForward, que el SDK acepta pero esta acción no (exige una versión completa).
       - uses: actions/setup-dotnet@v5
         with:
-          global-json-file: src/backend/global.json
+          dotnet-version: '10.0.x'
 
       - name: Compilar con TreatWarningsAsErrors
         run: dotnet build src/backend --nologo
@@ -70,16 +72,20 @@ jobs:
 
       # Credenciales descartables sólo para este arranque. El bot y el túnel no se usan acá: las
       # pruebas de humo no tocan Telegram, y los secretos reales nunca viven en el repositorio.
+      # Se escribe entero en vez de copiar `.env.example` y añadir líneas: con claves repetidas
+      # habría que confiar en cuál gana, y un arranque que falla por eso es un diagnóstico perdido.
       - name: Preparar un .env de prueba
         run: |
-          cp .env.example .env
-          {
-            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
-            echo "RABBITMQ_DEFAULT_PASS=$(openssl rand -hex 16)"
-            echo "TELEGRAM_BOT_TOKEN=000000000:ci-placeholder-no-es-un-token-real"
-            echo "TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 24)"
-            echo "NGROK_AUTHTOKEN=ci-placeholder"
-          } >> .env
+          cat > .env <<ENVIRONMENT
+          TELEGRAM_BOT_TOKEN=000000000:marcador-de-ci-no-es-un-token-real
+          TELEGRAM_WEBHOOK_SECRET_TOKEN=$(openssl rand -hex 24)
+          NGROK_AUTHTOKEN=marcador-de-ci
+          POSTGRES_DB=encodelabs_inbox
+          POSTGRES_USER=encodelabs_inbox
+          POSTGRES_PASSWORD=$(openssl rand -hex 16)
+          RABBITMQ_DEFAULT_USER=encodelabs_inbox
+          RABBITMQ_DEFAULT_PASS=$(openssl rand -hex 16)
+          ENVIRONMENT
 
       - name: Levantar el stack
         run: docker compose up --detach --build postgres rabbitmq api frontend

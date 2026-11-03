@@ -309,7 +309,8 @@ Decisiones tomadas ante lo que el enunciado no define:
 | [docs/adr/ADR-004-single-deployable-host.md](docs/adr/ADR-004-single-deployable-host.md) | Un solo host desplegable (ADR propio, no pedido por el enunciado) |
 | [docs/ai-usage.md](docs/ai-usage.md) | Trabajo con IA |
 | [docs/validation-checklist.md](docs/validation-checklist.md) | Qué se validó, con evidencia, y preguntas bonus |
-| [docs/code-review.md](docs/code-review.md) | Log de revisión de código con hallazgos y correcciones |
+| [docs/code-review.md](docs/code-review.md) | Log de revisión de código: 25 hallazgos, sus correcciones y el test que cubre cada uno |
+| [scripts/verify.sh](scripts/verify.sh) | La compuerta: build y los 80 tests. Nada se da por revisado si no termina en 0 |
 
 ### Estructura del repositorio
 
@@ -320,9 +321,12 @@ src/backend/
   EncodeLabs.Infrastructure/  EF Core + PostgreSQL, RabbitMQ, Bot API de Telegram, agente ngrok.
   EncodeLabs.Api/             Endpoints HTTP, webhook, hub SignalR, composición, arranque.
 src/frontend/                 Angular 22 + nginx.
-tests/                        Tests unitarios de dominio y de casos de uso (xUnit v3).
+tests/                        4 proyectos de tests unitarios (xUnit v3): dominio, casos de uso,
+                              infraestructura y API.
+scripts/                      verify.sh (la compuerta) y smoke-test.sh (contra el stack levantado).
 docs/                         Diagramas, ADRs, validación y revisión.
 docker/                       Configuración del agente de ngrok.
+.github/workflows/            CI: build y tests en cada push y pull request.
 ```
 
 Las dependencias apuntan **hacia adentro**: `Domain` no referencia nada, `Application` solo

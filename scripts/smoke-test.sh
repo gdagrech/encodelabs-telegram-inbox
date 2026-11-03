@@ -91,14 +91,21 @@ check 'GET /api/contacts/<id>/messages inexistente' \
 # the same address back, the second check says so rather than claiming a pass it did not earn.
 printf '\nnginx vuelve a resolver la API cuando cambia de dirección (CR-024)\n'
 
-compose_network="$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}' \
-  encodelabs-inbox-api-1 2>/dev/null)"
+# El contenedor se resuelve por Compose en vez de nombrarlo a mano: el nombre depende del proyecto
+# y hardcodearlo rompe el guion en cualquier entorno que no sea esta máquina.
+api_container_id="$(docker compose ps --quiet api 2>/dev/null)"
+
+compose_network=''
+if [[ -n "$api_container_id" ]]; then
+  compose_network="$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}' \
+    "$api_container_id" 2>/dev/null)"
+fi
 
 if [[ -z "$compose_network" ]]; then
   printf '  \033[33mSALTEADA\033[0m el contenedor api no está corriendo\n'
 else
   address_before="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
-    encodelabs-inbox-api-1)"
+    "$api_container_id")"
 
   # The mechanism: nginx must name the upstream through a variable and have a resolver configured.
   # A literal host is resolved once and cached forever, which is the defect itself. Deterministic,
@@ -129,7 +136,7 @@ else
   done
 
   address_after="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' \
-    encodelabs-inbox-api-1)"
+    "$(docker compose ps --quiet api)")"
 
   if [[ "$address_before" == "$address_after" ]]; then
     # Honest wording: Docker handed the same address back, so recreating the container did not
