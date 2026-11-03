@@ -232,6 +232,7 @@ Decisiones tomadas ante lo que el enunciado no define:
 |---|---|
 | [docs/architecture/c4-context.svg](docs/architecture/c4-context.svg) | C4 nivel 1 — contexto del sistema |
 | [docs/architecture/c4-containers.svg](docs/architecture/c4-containers.svg) | C4 nivel 2 — contenedores |
+| [docs/architecture/overview.md](docs/architecture/overview.md) | Trazabilidad C4 ↔ código, esquema de base de datos, garantías y modos de falla |
 | [docs/adr/ADR-001-database.md](docs/adr/ADR-001-database.md) | Base de datos elegida |
 | [docs/adr/ADR-002-realtime.md](docs/adr/ADR-002-realtime.md) | Tecnología de tiempo real |
 | [docs/adr/ADR-003-telegram-rabbitmq.md](docs/adr/ADR-003-telegram-rabbitmq.md) | Flujo del webhook y topología de colas |
