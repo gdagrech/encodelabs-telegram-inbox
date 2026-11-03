@@ -62,7 +62,7 @@ Estado real de cada requisito, con la evidencia que lo respalda. Se distingue ex
 |---|---|---|
 | `docker-compose.yml` con todos los servicios | **PASS** | Raíz. 5 servicios: `postgres`, `rabbitmq`, `api`, `ngrok`, `frontend`. |
 | `.env.example` sin valores reales | **PASS** | Raíz. Sólo nombres, placeholders e instrucciones. |
-| `README.md` con requisitos, `.env`, ejecución, prueba E2E y supuestos | **PASS** | Raíz. 14 supuestos documentados. |
+| `README.md` con requisitos, `.env`, ejecución, prueba E2E y supuestos | **PASS** | Raíz. 15 supuestos documentados. |
 | C4 nivel 1 y nivel 2 en SVG | **PASS** | `docs/architecture/`. SVG válidos (`xml.etree` parsea ambos) y renderizados para revisar la maquetación. |
 | 3 ADRs con la plantilla del enunciado, máx. 1 página | **PASS** | `docs/adr/`. Estado / Contexto / Alternativas / Decisión / Consecuencias. Se sumó un cuarto, ADR-004, sobre el host único: el enunciado habilita ADRs adicionales y era la decisión propia de mayor alcance sin registrar. |
 | Documento de trabajo con IA, máx. 1 página | **PASS** | `docs/ai-usage.md`. |

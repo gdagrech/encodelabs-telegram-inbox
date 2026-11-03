@@ -263,6 +263,10 @@ Decisiones tomadas ante lo que el enunciado no define:
 14. **Se publica el puerto 8080 de la API** para poder diagnosticar con `curl`. La bandeja en sí
     solo necesita http://localhost:4200, que proxea `/api` y `/hubs` a la API por nginx (por eso no
     hace falta configurar CORS).
+15. **La conversación abierta no sobrevive al refresco** y no tiene URL propia. La selección es
+    estado en memoria; la app no usa router ni almacenamiento del navegador. Una ruta
+    `/contactos/:id` daría enlace compartible, pero introduce el router de Angular para una única
+    pantalla. Se eligió el estado más simple que cumple el layout pedido.
 
 ---
 
