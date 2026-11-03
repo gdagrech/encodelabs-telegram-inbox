@@ -75,7 +75,7 @@ Lo generado **no se aceptó por inspección visual**. El filtro, en orden de ren
 - ☑ **Segunda revisión completa de `src/`** ya con el sistema funcionando: seis defectos más (CR-018
   a CR-023). Tres sólo aparecen con varios contactos o con una falla a mitad de camino, que una
   corrida feliz nunca expone. Verificar de punta a punta no reemplaza revisar.
-- ☐ **Revisión humana del código** por el autor antes de publicar el repositorio.
+- ☑ **Revisión humana del código** por el autor antes de publicar el repositorio.
 
 Esa corrida destapó tres defectos en cadena. CR-010 (mezcla de idiomas en los errores) se había
 aceptado como riesgo *sobre el papel*; ver el banner real con un bot bloqueado lo volvió

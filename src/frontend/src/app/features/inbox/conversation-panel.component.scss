@@ -1,6 +1,14 @@
+/* Same as the contact list: the host carries the row height so the message area can scroll inside
+   it, leaving the header and the reply box fixed. */
+:host {
+  display: block;
+  min-height: 0;
+}
+
 .conversation-panel {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
   background: var(--color-surface-subtle);
 }

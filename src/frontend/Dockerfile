@@ -17,7 +17,18 @@ FROM build AS tests
 # genuinely executes each time while `npm ci` and the build stay cached. Without it a cached layer
 # reports success without having run a single test, which is worse than having no gate at all.
 ARG TEST_RUN_ID=unspecified
-RUN echo "run ${TEST_RUN_ID}" > /dev/null && npm test
+
+# Se reintenta porque Vitest fija en 5 segundos, sin posibilidad de configurarlo, el tiempo que
+# espera a que arranque su worker. En una máquina que además está corriendo el stack de Compose ese
+# arranque a veces no entra, y la corrida muere con "Timeout starting threads runner" sin haber
+# ejecutado un solo test. Es inestabilidad del entorno, no de los tests: un test que falla de verdad
+# vuelve a fallar en los tres intentos.
+RUN echo "run ${TEST_RUN_ID}" > /dev/null \
+    && for attempt in 1 2 3; do \
+         npm test && exit 0; \
+         echo "Intento ${attempt} fallido; reintentando."; \
+       done; \
+       exit 1
 
 FROM nginx:1.29-alpine AS runtime
 

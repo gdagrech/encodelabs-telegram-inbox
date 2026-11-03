@@ -1,6 +1,14 @@
+/* The host is a grid item, so it already takes the row's height; the panel inside must fill it for
+   the list below to have something to scroll within. */
+:host {
+  display: block;
+  min-height: 0;
+}
+
 .contact-list {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
   background: var(--color-surface-default);
   border-right: 1px solid var(--color-border-default);
@@ -48,6 +56,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  /* Takes the remaining height and scrolls on its own, instead of pushing the column taller. */
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 

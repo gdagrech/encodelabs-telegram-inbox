@@ -1,3 +1,11 @@
+/* The host sits between app-root and the shell. Without an explicit height here the chain breaks:
+   the shell's `height: 100%` resolves against an element that has no height of its own, so it grows
+   with its content and the whole document scrolls instead of the message list. */
+:host {
+  display: block;
+  height: 100%;
+}
+
 .inbox-shell {
   display: grid;
   grid-template-rows: auto auto 1fr;
@@ -127,4 +135,6 @@
   display: grid;
   grid-template-columns: 340px 1fr;
   min-height: 0;
+  /* Confines any overflow to the columns, which scroll internally. */
+  overflow: hidden;
 }

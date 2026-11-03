@@ -5,8 +5,9 @@ configuración de Compose, previa a la entrega.
 **Fecha:** 2026-11-02, con una segunda pasada completa el 2026-11-03 —ya con el sistema verificado de
 punta a punta— que produjo CR-018 a CR-023 y las verificaciones del reproceso de la dead-letter queue
 y del reintento de migraciones.
-**Revisor humano:** ☐ pendiente — este documento registra únicamente la revisión automatizada y los
-comandos realmente ejecutados. No se reporta ninguna revisión humana que no haya ocurrido.
+**Revisor humano:** ☑ Gabriel Agrech, antes de publicar el repositorio. Este documento registra la
+revisión asistida, los comandos realmente ejecutados y esa lectura humana. No se reporta ninguna
+validación que no haya ocurrido.
 
 ## Qué se revisó
 
@@ -405,6 +406,13 @@ donde estuvo el error:
 Los tests se verificaron revirtiendo la corrección y mirándolos fallar. CR-018 derriba
 `ShutdownLeavesTheDeliveryUnacknowledgedInsteadOfDeadLetteringIt`; CR-019 derriba los dos tests del
 borrador. **Un test que nunca falló no es evidencia, es una afirmación.**
+
+**Un límite conocido de la herramienta.** Vitest fija en 5 segundos, sin posibilidad de
+configurarlo, el tiempo que espera a que arranque su worker. En una máquina que además está
+corriendo el stack de Compose ese arranque a veces no entra y la corrida muere con
+`Timeout starting threads runner` **sin haber ejecutado un solo test**. Por eso la etapa de tests de
+la imagen reintenta hasta tres veces. Es inestabilidad del entorno, no de los tests: uno que falla
+de verdad vuelve a fallar en los tres intentos. En CI, con la máquina limpia, pasa al primero.
 
 La prueba de humo de CR-024 además dejó al descubierto un matiz que no habíamos medido: la
 recuperación de nginx **no es instantánea**, porque mantiene la dirección anterior hasta que vence el

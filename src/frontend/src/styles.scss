@@ -65,6 +65,9 @@ body {
 }
 
 body {
+  /* The shell fills the viewport and the two columns scroll on their own. Without this the page
+     itself scrolls, taking the header and the reply box out of view along with the messages. */
+  overflow: hidden;
   background: var(--color-surface-subtle);
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
